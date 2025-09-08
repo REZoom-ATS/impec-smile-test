@@ -6,26 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Impec: Smile Challenge Check</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Include TensorFlow.js for client-side ML functionality -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.13.0/dist/tf.min.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f3f4f6;
-            color: #1f2937;
-        }
-
-        .gradient-bg {
-            background-image: linear-gradient(to bottom right, #f8bbd0, #e91e63);
-        }
-
-        .logo-svg {
-            width: 80px;
-            height: 80px;
-        }
-    </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
 
 <body class="min-h-screen flex flex-col items-center justify-center p-4">
@@ -35,14 +16,8 @@
 
         <!-- Logo and Title Section -->
         <div class="flex flex-col items-center space-y-4">
-            <!-- SVG representation of the provided logo -->
-            <div class="w-24 h-24 bg-[#F8BBD0] rounded-full flex items-center justify-center">
-                <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-16 h-16">
-                    <path
-                        d="M0 50 C25 20, 75 20, 100 50 L100 100 L0 100 Z M45 75 A5 5 0 1 1 55 75 A5 5 0 1 1 45 75 Z"
-                        fill="#1f2937" />
-                </svg>
-            </div>
+            <!-- Logo image from the assets folder -->
+            <img src="assets/mid-logo.png" alt="Impec Logo" class="w-24 h-24 rounded-full">
             <h1 class="text-3xl sm:text-4xl font-bold">Impec: Smile Challenge</h1>
             <p class="text-gray-500 text-sm sm:text-base">Check your smile score and get a coupon for a discount on
                 clear aligners.</p>
@@ -94,15 +69,11 @@
             <div class="flex flex-col items-center space-y-2">
                 <span class="text-green-500 font-bold text-lg">Analysis Complete!</span>
                 <h2 class="text-3xl font-bold">Your Smile Score</h2>
+                <div class="text-6xl font-extrabold text-pink-600" id="smile-score-display"></div>
             </div>
 
             <div id="results-image-container" class="w-full h-48 rounded-xl overflow-hidden shadow-md">
                 <img id="results-image" class="w-full h-full object-cover" />
-            </div>
-
-            <div class="bg-gray-100 p-4 rounded-xl space-y-2 text-left">
-                <p class="font-bold">Detected Issues:</p>
-                <ul id="detected-issues" class="list-disc list-inside space-y-1 text-gray-600"></ul>
             </div>
 
             <div class="flex items-center justify-between p-4 bg-yellow-100 rounded-xl shadow-inner">
@@ -111,12 +82,13 @@
             </div>
 
             <p class="text-center text-gray-600 font-medium">
-                Take a screenshot of this page and click below to claim your discount.
+                To get a detailed review of your smile and find the perfect correction procedure, please click below to
+                chat with our expert and attach a screenshot of this page.
             </p>
 
-            <a id="whatsapp-link" href="#"
+            <a id="whatsapp-link" href="#" target="_blank"
                 class="inline-block w-full gradient-bg text-white font-bold py-3 px-6 rounded-full shadow-lg transition-colors duration-300 text-center">
-                Send Screenshot on WhatsApp
+                Need Review with Expert
             </a>
         </div>
     </div>
@@ -133,148 +105,7 @@
         </div>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const formSection = document.getElementById('form-section');
-            const uploadSection = document.getElementById('upload-section');
-            const resultsSection = document.getElementById('results-section');
-            const formCompleteBtn = document.getElementById('form-complete-btn');
-            const imageUpload = document.getElementById('image-upload');
-            const cameraBtn = document.getElementById('camera-btn');
-            const imagePreview = document.getElementById('image-preview');
-            const analyzeBtn = document.getElementById('analyze-btn');
-            const resultsImage = document.getElementById('results-image');
-            const detectedIssuesList = document.getElementById('detected-issues');
-            const discountPercent = document.getElementById('discount-percent');
-            const whatsappLink = document = document.getElementById('whatsapp-link');
-
-            const modal = document.getElementById('modal');
-            const modalTitle = document.getElementById('modal-title');
-            const modalMessage = document.getElementById('modal-message');
-            const modalCloseBtn = document.getElementById('modal-close-btn');
-
-            let uploadedFile = null;
-
-            // --- AI Analysis Logic (Simulated with TensorFlow.js structure) ---
-            async function loadModel() {
-                // Simulate model loading
-                console.log("Loading TensorFlow.js model...");
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                console.log("Model loaded successfully.");
-                return "model_placeholder"; // Return a placeholder for the model
-            }
-
-            async function predictOrthodonticIssues(imageElement, model) {
-                // This is a simulated prediction function
-                console.log("Making a prediction...");
-                // Simulating a Tensor creation and processing
-                const tensor = tf.browser.fromPixels(imageElement).resizeBilinear([224, 224]).toFloat().div(tf.scalar(255));
-                console.log("Image tensor created:", tensor);
-
-                const orthodonticIssues = [
-                    "Crowding", "Spacing (Gaps)", "Overbite", "Underbite", "Open Bite",
-                    "Crossbite", "Deep Bite", "Protruding Teeth", "Impacted Teeth", "Midline Discrepancy"
-                ];
-
-                const numIssues = Math.floor(Math.random() * (4 - 1 + 1)) + 1; // 1 to 4 issues
-                const detected = [...orthodonticIssues].sort(() => 0.5 - Math.random()).slice(0, numIssues);
-                return detected;
-            }
-
-            // --- UI and User Flow Logic ---
-
-            // Modal utility function
-            function showModal(title, message) {
-                modalTitle.textContent = title;
-                modalMessage.textContent = message;
-                modal.classList.remove('hidden');
-            }
-
-            modalCloseBtn.addEventListener('click', () => {
-                modal.classList.add('hidden');
-            });
-
-            // Handle navigation from form to upload section
-            formCompleteBtn.addEventListener('click', () => {
-                formSection.classList.add('hidden');
-                uploadSection.classList.remove('hidden');
-            });
-
-            // Handle image upload and camera capture
-            imageUpload.addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    uploadedFile = file;
-                    analyzeBtn.disabled = false;
-                    analyzeBtn.classList.remove('bg-gray-200', 'text-gray-700', 'cursor-not-allowed');
-                    analyzeBtn.classList.add('bg-[#e91e63]', 'text-white', 'hover:bg-[#c2185b]');
-
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                        const img = new Image();
-                        img.onload = () => {
-                            imagePreview.innerHTML = `<img id="preview-img" src="${event.target.result}" class="w-full h-full object-contain rounded-xl" />`;
-                        };
-                        img.src = event.target.result;
-                    };
-                    reader.readAsDataURL(file);
-                }
-            });
-
-            cameraBtn.addEventListener('click', () => {
-                imageUpload.setAttribute('capture', 'camera');
-                imageUpload.click();
-            });
-
-            // Handle analysis button click
-            analyzeBtn.addEventListener('click', async () => {
-                if (!uploadedFile) {
-                    showModal("No Image Uploaded", "Please upload a photo before analysis.");
-                    return;
-                }
-
-                analyzeBtn.textContent = 'Analyzing...';
-                analyzeBtn.disabled = true;
-                analyzeBtn.classList.remove('hover:bg-[#c2185b]');
-                analyzeBtn.classList.add('cursor-not-allowed');
-
-                try {
-                    const model = await loadModel();
-                    const imgElement = document.getElementById('preview-img');
-                    
-                    const detectedIssues = await predictOrthodonticIssues(imgElement, model);
-
-                    const discount = detectedIssues.length * 10;
-
-                    // Display results
-                    detectedIssuesList.innerHTML = '';
-                    if (detectedIssues.length === 0) {
-                        detectedIssuesList.innerHTML = `<li class="list-none text-center">No clear orthodontic problems detected.</li>`;
-                    } else {
-                        detectedIssues.forEach(issue => {
-                            const li = document.createElement('li');
-                            li.textContent = issue;
-                            detectedIssuesList.appendChild(li);
-                        });
-                    }
-
-                    resultsImage.src = URL.createObjectURL(uploadedFile);
-                    discountPercent.textContent = `${discount}%`;
-                    whatsappLink.href = `https://wa.me/916005795693?text=I've completed the Impec Smile Challenge. Here is a screenshot of my results and discount coupon!`;
-
-                    uploadSection.classList.add('hidden');
-                    resultsSection.classList.remove('hidden');
-                } catch (error) {
-                    console.error("Analysis failed:", error);
-                    showModal("Analysis Error", "We encountered a technical issue. Please try re-uploading your photo or contact support.");
-                } finally {
-                    analyzeBtn.textContent = 'Analyze My Smile';
-                    analyzeBtn.disabled = false;
-                    analyzeBtn.classList.remove('cursor-not-allowed');
-                }
-            });
-        });
-    </script>
+    <script src="script.js"></script>
 </body>
 
 </html>
