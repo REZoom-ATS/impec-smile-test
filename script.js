@@ -1,5 +1,7 @@
 let imageFile = null;
 let videoStream = null;
+let video = null;
+let animationFrameId = null;
 let faceMesh = null;
 
 // DOM Elements
@@ -37,64 +39,6 @@ formCompleteBtn.addEventListener('click', () => {
 });
 
 // -------------------------
-// File Upload
-// -------------------------
-imageUpload.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    imageFile = file;
-    displayPreview(file);
-});
-
-// -------------------------
-// Camera Capture
-// -------------------------
-cameraBtn.addEventListener('click', async () => {
-    if (videoStream) stopCamera();
-
-    try {
-        videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
-    } catch (err) {
-        showModal('Camera Error', 'Unable to access your camera.');
-        return;
-    }
-
-    const video = document.createElement('video');
-    video.autoplay = true;
-    video.playsInline = true;
-    video.srcObject = videoStream;
-    video.classList.add('w-full', 'h-full', 'object-cover', 'rounded-xl');
-
-    imagePreview.innerHTML = '';
-    imagePreview.appendChild(video);
-
-    const captureBtn = document.createElement('button');
-    captureBtn.textContent = 'Capture Photo';
-    captureBtn.className = 'w-full mt-2 bg-[#e91e63] text-white font-semibold py-2 px-4 rounded-full shadow-lg hover:bg-[#c2185b] transition-colors duration-300';
-    imagePreview.appendChild(captureBtn);
-
-    captureBtn.addEventListener('click', () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        canvas.toBlob((blob) => {
-            imageFile = new File([blob], 'captured.jpg', { type: 'image/jpeg' });
-            displayPreview(imageFile);
-            stopCamera();
-        }, 'image/jpeg', 0.95);
-    });
-});
-
-function stopCamera() {
-    if (!videoStream) return;
-    videoStream.getTracks().forEach(track => track.stop());
-    videoStream = null;
-}
-
-// -------------------------
 // Display Preview
 // -------------------------
 function displayPreview(file) {
@@ -107,77 +51,125 @@ function displayPreview(file) {
 }
 
 // -------------------------
-// Initialize FaceMesh
+// File Upload
 // -------------------------
-faceMesh = new FaceMesh.FaceMesh({
-    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
-});
-faceMesh.setOptions({
-    maxNumFaces: 1,
-    refineLandmarks: true,
-    minDetectionConfidence: 0.8,
-    minTrackingConfidence: 0.8
+imageUpload.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    imageFile = file;
+    stopCamera();
+    displayPreview(file);
 });
 
-faceMesh.onResults((results) => {
-    if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
-        showModal('Teeth Not Detected', 'Please make sure your teeth are visible.');
+// -------------------------
+// Camera Capture with Live Overlay
+// -------------------------
+cameraBtn.addEventListener('click', async () => {
+    stopCamera();
+
+    try {
+        videoStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+    } catch (err) {
+        showModal('Camera Error', 'Unable to access your camera.');
         return;
     }
 
-    const landmarks = results.multiFaceLandmarks[0];
-    const mouthIndices = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 308];
-    const mouthPoints = mouthIndices.map(i => landmarks[i]);
+    video = document.createElement('video');
+    video.autoplay = true;
+    video.playsInline = true;
+    video.srcObject = videoStream;
 
-    // Compute Smile Score
-    const alignmentDeviation = computeAlignmentDeviation(mouthPoints);
-    const symmetryDeviation = computeSymmetryDeviation(mouthPoints);
-    const gapScore = computeGapScore(mouthPoints);
-    const biteScore = computeBiteScore(mouthPoints);
-    const missingTeethPenalty = computeMissingTeethPenalty(mouthPoints);
-
-    const score = Math.max(0, Math.min(100,
-        100 - 20 * alignmentDeviation
-            - 20 * symmetryDeviation
-            - 15 * gapScore
-            - 20 * biteScore
-            - 25 * missingTeethPenalty
-    ));
-
-    smileScoreDisplay.textContent = Math.round(score);
-
-    // Annotated overlay
-    const img = document.getElementById('uploaded-img');
+    // Canvas for live overlay
     const canvas = document.createElement('canvas');
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
+    canvas.width = 640;
+    canvas.height = 480;
+    canvas.classList.add('w-full', 'h-full', 'rounded-xl');
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, 0, 0);
-    ctx.strokeStyle = '#e91e63';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    mouthPoints.forEach((p, i) => {
-        const x = p.x * canvas.width;
-        const y = p.y * canvas.height;
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
+    imagePreview.innerHTML = '';
+    imagePreview.appendChild(canvas);
+
+    if (!faceMesh) initFaceMesh();
+
+    const processFrame = () => {
+        if (!videoStream) return;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        faceMesh.send({ image: canvas });
+        animationFrameId = requestAnimationFrame(processFrame);
+    };
+    processFrame();
+
+    // Capture Button
+    const captureBtn = document.createElement('button');
+    captureBtn.textContent = 'Capture Photo';
+    captureBtn.className = 'w-full mt-2 bg-[#e91e63] text-white font-semibold py-2 px-4 rounded-full shadow-lg hover:bg-[#c2185b] transition-colors duration-300';
+    imagePreview.appendChild(captureBtn);
+
+    captureBtn.addEventListener('click', () => {
+        const capturedCanvas = document.createElement('canvas');
+        capturedCanvas.width = canvas.width;
+        capturedCanvas.height = canvas.height;
+        const capturedCtx = capturedCanvas.getContext('2d');
+        capturedCtx.drawImage(canvas, 0, 0);
+        capturedCanvas.toBlob((blob) => {
+            imageFile = new File([blob], 'captured.jpg', { type: 'image/jpeg' });
+            stopCamera();
+            displayPreview(imageFile);
+        }, 'image/jpeg', 0.95);
     });
-    ctx.closePath();
-    ctx.stroke();
-    resultsImage.src = canvas.toDataURL();
-
-    // Discount calculation
-    let discount = 0;
-    if (score >= 90) discount = 50;
-    else if (score >= 75) discount = 30;
-    else if (score >= 50) discount = 15;
-    discountPercent.textContent = discount + '%';
-
-    resultsSection.classList.remove('hidden');
 });
 
+function stopCamera() {
+    if (videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+        videoStream = null;
+    }
+    if (animationFrameId) cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
+}
+
 // -------------------------
-// Analyze Button Handler
+// Initialize FaceMesh
+// -------------------------
+function initFaceMesh() {
+    faceMesh = new FaceMesh.FaceMesh({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+    });
+    faceMesh.setOptions({
+        maxNumFaces: 1,
+        refineLandmarks: true,
+        minDetectionConfidence: 0.8,
+        minTrackingConfidence: 0.8
+    });
+
+    faceMesh.onResults((results) => {
+        const canvas = imagePreview.querySelector('canvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+
+        if (video && videoStream) ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) return;
+
+        const landmarks = results.multiFaceLandmarks[0];
+        const mouthIndices = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 308];
+        const mouthPoints = mouthIndices.map(i => landmarks[i]);
+
+        ctx.strokeStyle = '#e91e63';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        mouthPoints.forEach((p, i) => {
+            const x = p.x * canvas.width;
+            const y = p.y * canvas.height;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.closePath();
+        ctx.stroke();
+    });
+}
+
+// -------------------------
+// Analyze Button
 // -------------------------
 analyzeBtn.addEventListener('click', () => {
     if (!imageFile) {
@@ -187,18 +179,72 @@ analyzeBtn.addEventListener('click', () => {
 
     const img = document.getElementById('uploaded-img');
     if (!img.complete) {
-        img.onload = () => sendToFaceMesh(img);
+        img.onload = () => runSmileAnalysis(img);
     } else {
-        sendToFaceMesh(img);
+        runSmileAnalysis(img);
     }
 });
 
-function sendToFaceMesh(img) {
+function runSmileAnalysis(img) {
     const canvas = document.createElement('canvas');
     canvas.width = img.naturalWidth;
     canvas.height = img.naturalHeight;
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0);
+
+    if (!faceMesh) initFaceMesh();
+
+    faceMesh.onResults((results) => {
+        if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
+            showModal('Teeth Not Detected', 'Please make sure your teeth are visible.');
+            return;
+        }
+
+        const landmarks = results.multiFaceLandmarks[0];
+        const mouthIndices = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 308];
+        const mouthPoints = mouthIndices.map(i => landmarks[i]);
+
+        const alignmentDeviation = computeAlignmentDeviation(mouthPoints);
+        const symmetryDeviation = computeSymmetryDeviation(mouthPoints);
+        const gapScore = computeGapScore(mouthPoints);
+        const biteScore = computeBiteScore(mouthPoints);
+        const missingTeethPenalty = computeMissingTeethPenalty(mouthPoints);
+
+        const score = Math.max(0, Math.min(100,
+            100 - 20 * alignmentDeviation
+                - 20 * symmetryDeviation
+                - 15 * gapScore
+                - 20 * biteScore
+                - 25 * missingTeethPenalty
+        ));
+
+        smileScoreDisplay.textContent = Math.round(score);
+
+        // Overlay on captured image
+        ctx.strokeStyle = '#e91e63';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        mouthPoints.forEach((p, i) => {
+            const x = p.x * canvas.width;
+            const y = p.y * canvas.height;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.closePath();
+        ctx.stroke();
+
+        resultsImage.src = canvas.toDataURL();
+
+        // Discount
+        let discount = 0;
+        if (score >= 90) discount = 50;
+        else if (score >= 75) discount = 30;
+        else if (score >= 50) discount = 15;
+        discountPercent.textContent = discount + '%';
+
+        resultsSection.classList.remove('hidden');
+    });
+
     faceMesh.send({ image: canvas });
 }
 
