@@ -1,88 +1,128 @@
-// script.js — upgraded with AI-like reasoning for tooth detection
-// Combines lip detection, tooth detection using brightness, symmetry, curvature splitting, and outline thickness heuristics
-// Adds adaptive thresholding to mimic AI-like decision-making
-
-
 document.addEventListener('DOMContentLoaded', () => {
-const imageUpload = document.getElementById('image-upload');
-const analyzeBtn = document.getElementById('analyze-btn');
-const resultsImage = document.getElementById('results-image');
+    const formSection = document.getElementById('form-section');
+    const uploadSection = document.getElementById('upload-section');
+    const resultsSection = document.getElementById('results-section');
+    const formCompleteBtn = document.getElementById('form-complete-btn');
+    const imageUpload = document.getElementById('image-upload');
+    const cameraBtn = document.getElementById('camera-btn');
+    const imagePreview = document.getElementById('image-preview');
+    const analyzeBtn = document.getElementById('analyze-btn');
+    const resultsImage = document.getElementById('results-image');
+    const smileScoreDisplay = document.getElementById('smile-score-display');
+    const discountPercent = document.getElementById('discount-percent');
+    const whatsappLink = document.getElementById('whatsapp-link');
+    const modal = document.getElementById('modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalMessage = document.getElementById('modal-message');
+    const modalCloseBtn = document.getElementById('modal-close-btn');
 
+    let uploadedFile = null;
 
-let uploadedFile = null;
-imageUpload.addEventListener('change', (e) => { uploadedFile = e.target.files[0]; analyzeBtn.disabled = !uploadedFile; });
+    // --- AI Analysis Logic (Simulated for client-side) ---
+    async function predictOrthodonticIssues() {
+        // This is a simulated prediction function that provides a realistic range of scores.
+        console.log("Making a prediction...");
 
+        // Define a base score for a "perfect" smile
+        let finalScore = 100;
 
-analyzeBtn.addEventListener('click', async () => {
-if (!uploadedFile) return;
-const dataURL = await fileToDataURL(uploadedFile);
-const img = await loadImage(dataURL);
+        // Simulate a number of issues to detect (from 1 to 4)
+        const numIssuesToDetect = Math.floor(Math.random() * 4) + 1;
 
+        // Simulate deduction of points for each issue
+        for (let i = 0; i < numIssuesToDetect; i++) {
+            const deduction = Math.floor(Math.random() * 20) + 5; // Deduct between 5 and 25 points
+            finalScore -= deduction;
+        }
 
-const canvas = document.createElement('canvas');
-const ctx = canvas.getContext('2d');
-canvas.width = img.width; canvas.height = img.height;
-ctx.drawImage(img, 0, 0);
-const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        // Ensure the score doesn't fall below a minimum
+        if (finalScore < 50) {
+            finalScore = 50;
+        }
 
+        return finalScore;
+    }
 
-const analysis = analyzeSmile(imageData, canvas);
-resultsImage.src = canvas.toDataURL('image/png');
-});
+    // --- UI and User Flow Logic ---
 
+    function showModal(title, message) {
+        modalTitle.textContent = title;
+        modalMessage.textContent = message;
+        modal.classList.remove('hidden');
+    }
 
-function fileToDataURL(file) {
-return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
-}
-function loadImage(src) {
-return new Promise((res, rej) => { const img = new Image(); img.onload = () => res(img); img.onerror = rej; img.src = src; });
-}
+    modalCloseBtn.addEventListener('click', () => {
+        modal.classList.add('hidden');
+    });
 
+    formCompleteBtn.addEventListener('click', () => {
+        formSection.classList.add('hidden');
+        uploadSection.classList.remove('hidden');
+    });
 
-function rgbToHsl(r, g, b) {
-r /= 255; g /= 255; b /= 255;
-const max = Math.max(r, g, b), min = Math.min(r, g, b);
-let h, s, l = (max + min) / 2;
-if (max === min) { h = s = 0; } else {
-const d = max - min;
-s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-switch (max) {
-case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-case g: h = (b - r) / d + 2; break;
-case b: h = (r - g) / d + 4; break;
-}
-h /= 6;
-}
-return { h, s, l };
-}
+    imageUpload.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            uploadedFile = file;
+            analyzeBtn.disabled = false;
+            analyzeBtn.classList.remove('bg-gray-200', 'text-gray-700');
+            analyzeBtn.classList.add('bg-[#e91e63]', 'text-white', 'hover:bg-[#c2185b]');
 
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    imagePreview.innerHTML = `<img id="preview-img" src="${event.target.result}" class="w-full h-full object-contain rounded-xl" />`;
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    });
 
-function adaptiveToothPixel(r, g, b, meanLight) {
-const { s, l } = rgbToHsl(r, g, b);
-return l > Math.max(0.6, meanLight * 0.9) && s < 0.35;
-}
+    cameraBtn.addEventListener('click', () => {
+        imageUpload.setAttribute('capture', 'camera');
+        imageUpload.click();
+    });
 
+    analyzeBtn.addEventListener('click', async () => {
+        if (!uploadedFile) {
+            showModal("No Image Uploaded", "Please upload a photo before analysis.");
+            return;
+        }
 
-function labelComponents(mask, w, h) {
-const labels = new Int32Array(w * h).fill(0);
-let label = 0;
-for (let y = 0; y < h; y++) {
-for (let x = 0; x < w; x++) {
-const idx = y * w + x;
-if (mask[idx] && labels[idx] === 0) {
-label++; const stack = [idx]; labels[idx] = label;
-while (stack.length) {
-const p = stack.pop();
-const px = p % w, py = Math.floor(p / w);
-for (const n of [p - 1, p + 1, p - w, p + w]) {
-if (n >= 0 && n < w * h && mask[n] && labels[n] === 0) { labels[n] = label; stack.push(n); }
-}
-}
-}
-}
-}
-return { labels, count: label };
-}
+        analyzeBtn.textContent = 'Analyzing...';
+        analyzeBtn.disabled = true;
+        analyzeBtn.classList.remove('hover:bg-[#c2185b]');
+        analyzeBtn.classList.add('cursor-not-allowed');
 
+        try {
+            const smileScore = await predictOrthodonticIssues();
+            let discount = (100 - smileScore);
 
+            // Cap the discount to be within the 10-40% range
+            if (discount < 10) {
+                discount = 10;
+            }
+            if (discount > 40) {
+                discount = 40;
+            }
+
+            smileScoreDisplay.textContent = `${smileScore}%`;
+            discountPercent.textContent = `${discount}%`;
+            whatsappLink.href = `https://wa.me/916005795693?text=Hi, I just finished the Impec Smile Challenge. Here is a screenshot of my results. I need a review.`;
+
+            // Update the results image and hide the upload section
+            resultsImage.src = URL.createObjectURL(uploadedFile);
+            uploadSection.classList.add('hidden');
+            resultsSection.classList.remove('hidden');
+        } catch (error) {
+            console.error("Analysis failed:", error);
+            showModal("Analysis Error", "We encountered a technical issue. Please try again.");
+        } finally {
+            analyzeBtn.textContent = 'Analyze My Smile';
+            analyzeBtn.disabled = false;
+            analyzeBtn.classList.remove('cursor-not-allowed');
+        }
+    });
 });
