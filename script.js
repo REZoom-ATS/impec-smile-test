@@ -1,7 +1,8 @@
 let imageFile = null;
 let videoStream = null;
+let faceMesh = null;
 
-// DOM elements
+// DOM Elements
 const formCompleteBtn = document.getElementById('form-complete-btn');
 const uploadSection = document.getElementById('upload-section');
 const imageUpload = document.getElementById('image-upload');
@@ -28,7 +29,7 @@ function showModal(title, message) {
 }
 
 // -------------------------
-// Step 1: Form Complete
+// Form Completion
 // -------------------------
 formCompleteBtn.addEventListener('click', () => {
     uploadSection.classList.remove('hidden');
@@ -36,7 +37,7 @@ formCompleteBtn.addEventListener('click', () => {
 });
 
 // -------------------------
-// Step 2: File Upload
+// File Upload
 // -------------------------
 imageUpload.addEventListener('change', (e) => {
     const file = e.target.files[0];
@@ -46,7 +47,7 @@ imageUpload.addEventListener('change', (e) => {
 });
 
 // -------------------------
-// Step 3: Camera Capture
+// Camera Capture
 // -------------------------
 cameraBtn.addEventListener('click', async () => {
     if (videoStream) stopCamera();
@@ -106,100 +107,99 @@ function displayPreview(file) {
 }
 
 // -------------------------
-// Step 4: Analyze Smile
+// Initialize FaceMesh
 // -------------------------
-analyzeBtn.addEventListener('click', async () => {
-    if (!imageFile) {
-        showModal('No Image', 'Please upload or capture a clear photo of your teeth.');
+faceMesh = new FaceMesh.FaceMesh({
+    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+});
+faceMesh.setOptions({
+    maxNumFaces: 1,
+    refineLandmarks: true,
+    minDetectionConfidence: 0.8,
+    minTrackingConfidence: 0.8
+});
+
+faceMesh.onResults((results) => {
+    if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
+        showModal('Teeth Not Detected', 'Please make sure your teeth are visible.');
         return;
     }
 
+    const landmarks = results.multiFaceLandmarks[0];
+    const mouthIndices = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 308];
+    const mouthPoints = mouthIndices.map(i => landmarks[i]);
+
+    // Compute Smile Score
+    const alignmentDeviation = computeAlignmentDeviation(mouthPoints);
+    const symmetryDeviation = computeSymmetryDeviation(mouthPoints);
+    const gapScore = computeGapScore(mouthPoints);
+    const biteScore = computeBiteScore(mouthPoints);
+    const missingTeethPenalty = computeMissingTeethPenalty(mouthPoints);
+
+    const score = Math.max(0, Math.min(100,
+        100 - 20 * alignmentDeviation
+            - 20 * symmetryDeviation
+            - 15 * gapScore
+            - 20 * biteScore
+            - 25 * missingTeethPenalty
+    ));
+
+    smileScoreDisplay.textContent = Math.round(score);
+
+    // Annotated overlay
     const img = document.getElementById('uploaded-img');
-    if (!img.complete) {
-        showModal('Processing Error', 'Image not fully loaded. Try again.');
-        return;
-    }
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    ctx.strokeStyle = '#e91e63';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    mouthPoints.forEach((p, i) => {
+        const x = p.x * canvas.width;
+        const y = p.y * canvas.height;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+    });
+    ctx.closePath();
+    ctx.stroke();
+    resultsImage.src = canvas.toDataURL();
 
-    const { score, annotatedCanvas } = await analyzeTeeth(img);
-
-    resultsSection.classList.remove('hidden');
-    smileScoreDisplay.textContent = score;
-    resultsImage.src = annotatedCanvas.toDataURL();
-
-    // Discount logic
+    // Discount calculation
     let discount = 0;
     if (score >= 90) discount = 50;
     else if (score >= 75) discount = 30;
     else if (score >= 50) discount = 15;
     discountPercent.textContent = discount + '%';
+
+    resultsSection.classList.remove('hidden');
 });
 
 // -------------------------
-// Teeth Analysis Core
+// Analyze Button Handler
 // -------------------------
-async function analyzeTeeth(imageElement) {
-    return new Promise((resolve) => {
-        const faceMesh = new FaceMesh.FaceMesh({
-            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
-        });
-        faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.8, minTrackingConfidence: 0.8 });
+analyzeBtn.addEventListener('click', () => {
+    if (!imageFile) {
+        showModal('No Image', 'Please upload or capture a photo of your teeth.');
+        return;
+    }
 
-        faceMesh.onResults((results) => {
-            if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
-                showModal('Teeth Not Detected', 'Please make sure your teeth are visible.');
-                resolve({ score: 0, annotatedCanvas: document.createElement('canvas') });
-                return;
-            }
+    const img = document.getElementById('uploaded-img');
+    if (!img.complete) {
+        img.onload = () => sendToFaceMesh(img);
+    } else {
+        sendToFaceMesh(img);
+    }
+});
 
-            const landmarks = results.multiFaceLandmarks[0];
-            const mouthIndices = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 308];
-            const mouthPoints = mouthIndices.map(i => landmarks[i]);
-
-            const alignmentDeviation = computeAlignmentDeviation(mouthPoints);
-            const symmetryDeviation = computeSymmetryDeviation(mouthPoints);
-            const gapScore = computeGapScore(mouthPoints);
-            const biteScore = computeBiteScore(mouthPoints);
-            const missingTeethPenalty = computeMissingTeethPenalty(mouthPoints);
-
-            const score = Math.max(0, Math.min(100,
-                100 - 20 * alignmentDeviation
-                    - 20 * symmetryDeviation
-                    - 15 * gapScore
-                    - 20 * biteScore
-                    - 25 * missingTeethPenalty
-            ));
-
-            // Annotated overlay
-            const canvas = document.createElement('canvas');
-            canvas.width = imageElement.naturalWidth;
-            canvas.height = imageElement.naturalHeight;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(imageElement, 0, 0, canvas.width, canvas.height);
-
-            // Draw mouth landmarks
-            ctx.strokeStyle = '#e91e63';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            mouthPoints.forEach((p, i) => {
-                const x = p.x * canvas.width;
-                const y = p.y * canvas.height;
-                if (i === 0) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
-            });
-            ctx.closePath();
-            ctx.stroke();
-
-            resolve({ score: Math.round(score), annotatedCanvas: canvas });
-        });
-
-        const canvas = document.createElement('canvas');
-        canvas.width = imageElement.naturalWidth;
-        canvas.height = imageElement.naturalHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(imageElement, 0, 0, canvas.width, canvas.height);
-
-        faceMesh.send({ image: canvas });
-    });
+function sendToFaceMesh(img) {
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    faceMesh.send({ image: canvas });
 }
 
 // -------------------------
