@@ -120,17 +120,17 @@ analyzeBtn.addEventListener('click', async () => {
         return;
     }
 
-    const smileScore = await analyzeTeeth(img);
+    const { score, annotatedCanvas } = await analyzeTeeth(img);
 
     resultsSection.classList.remove('hidden');
-    smileScoreDisplay.textContent = smileScore;
-    resultsImage.src = URL.createObjectURL(imageFile);
+    smileScoreDisplay.textContent = score;
+    resultsImage.src = annotatedCanvas.toDataURL();
 
     // Discount logic
     let discount = 0;
-    if (smileScore >= 90) discount = 50;
-    else if (smileScore >= 75) discount = 30;
-    else if (smileScore >= 50) discount = 15;
+    if (score >= 90) discount = 50;
+    else if (score >= 75) discount = 30;
+    else if (score >= 50) discount = 15;
     discountPercent.textContent = discount + '%';
 });
 
@@ -147,7 +147,7 @@ async function analyzeTeeth(imageElement) {
         faceMesh.onResults((results) => {
             if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
                 showModal('Teeth Not Detected', 'Please make sure your teeth are visible.');
-                resolve(0);
+                resolve({ score: 0, annotatedCanvas: document.createElement('canvas') });
                 return;
             }
 
@@ -169,7 +169,27 @@ async function analyzeTeeth(imageElement) {
                     - 25 * missingTeethPenalty
             ));
 
-            resolve(Math.round(score));
+            // Annotated overlay
+            const canvas = document.createElement('canvas');
+            canvas.width = imageElement.naturalWidth;
+            canvas.height = imageElement.naturalHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(imageElement, 0, 0, canvas.width, canvas.height);
+
+            // Draw mouth landmarks
+            ctx.strokeStyle = '#e91e63';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            mouthPoints.forEach((p, i) => {
+                const x = p.x * canvas.width;
+                const y = p.y * canvas.height;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.closePath();
+            ctx.stroke();
+
+            resolve({ score: Math.round(score), annotatedCanvas: canvas });
         });
 
         const canvas = document.createElement('canvas');
