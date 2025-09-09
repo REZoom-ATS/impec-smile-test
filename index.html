@@ -7,13 +7,6 @@
     <title>Impec: Smile Challenge Check</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="styles.css">
-
-    <!-- ✅ Load TensorFlow.js and face landmarks model -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.18.0"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection"></script>
-
-    <!-- ✅ Load OpenCV.js -->
-    <script async src="https://docs.opencv.org/4.x/opencv.js" onload="onOpenCvReady();" ></script>
 </head>
 
 <body class="min-h-screen flex flex-col items-center justify-center p-4">
@@ -23,11 +16,11 @@
 
         <!-- Logo and Title Section -->
         <div class="flex flex-col items-center space-y-4">
+            <!-- Logo image from the assets folder -->
             <img src="assets/mid-logo.png" alt="Impec Logo" class="w-24 h-24 rounded-full">
             <h1 class="text-3xl sm:text-4xl font-bold">Impec: Smile Challenge</h1>
-            <p class="text-gray-500 text-sm sm:text-base">
-                Check your smile score and get a coupon for a discount on clear aligners.
-            </p>
+            <p class="text-gray-500 text-sm sm:text-base">Check your smile score and get a coupon for a discount on
+                clear aligners.</p>
         </div>
 
         <!-- Google Form Section -->
@@ -60,7 +53,7 @@
                     class="w-full bg-[#f8bbd0] text-[#e91e63] font-semibold py-3 px-6 rounded-full shadow-lg hover:bg-[#f48fb1] transition-colors duration-300">
                     Upload Photo
                 </button>
-                <button id="camera-btn" disabled
+                <button id="camera-btn"
                     class="w-full bg-[#e91e63] text-white font-semibold py-3 px-6 rounded-full shadow-lg hover:bg-[#c2185b] transition-colors duration-300">
                     Take Photo
                 </button>
@@ -112,7 +105,6 @@
         </div>
     </div>
 
-    <!-- ✅ Load script after libraries -->
     <script src="script.js"></script>
 </body>
 
