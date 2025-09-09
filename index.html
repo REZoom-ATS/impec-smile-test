@@ -5,8 +5,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Impec: Smile Challenge Check</title>
+    <!-- Link to Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="styles.css">
+    <!-- Link to your local stylesheet -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Links for TensorFlow.js and FaceMesh model -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/facemesh"></script>
 </head>
 
 <body class="min-h-screen flex flex-col items-center justify-center p-4">
@@ -35,6 +40,84 @@
             <button id="form-complete-btn"
                 class="w-full bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-full shadow-md mt-2 hover:bg-gray-300 transition-colors duration-300">
                 I've completed the form
+            </button>
+        </div>
+
+        <!-- Image Upload Section -->
+        <div id="upload-section" class="space-y-4 hidden">
+            <h2 class="text-xl font-semibold">Step 2: Upload Your Photo</h2>
+            <p class="text-gray-600">Please provide a clear photo of your teeth for analysis.</p>
+
+            <div id="image-preview"
+                class="relative w-full h-48 bg-gray-100 rounded-xl flex items-center justify-center p-4">
+                <span class="text-gray-400">Image preview will appear here</span>
+                <canvas id="overlay-canvas" class="absolute inset-0 w-full h-full"></canvas>
+            </div>
+
+            <div class="flex flex-col sm:flex-row sm:space-x-4 space-y-4 sm:space-y-0">
+                <input type="file" id="image-upload" accept="image/*" class="hidden" />
+                <button onclick="document.getElementById('image-upload').click()"
+                    class="w-full bg-[#f8bbd0] text-[#e91e63] font-semibold py-3 px-6 rounded-full shadow-lg hover:bg-[#f48fb1] transition-colors duration-300">
+                    Upload Photo
+                </button>
+                <button id="camera-btn"
+                    class="w-full bg-[#e91e63] text-white font-semibold py-3 px-6 rounded-full shadow-lg hover:bg-[#c2185b] transition-colors duration-300">
+                    Take Photo
+                </button>
+            </div>
+            <button id="analyze-btn" disabled
+                class="w-full bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-full shadow-md mt-2">
+                Analyze My Smile
+            </button>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results-section" class="space-y-6 hidden">
+            <div class="flex flex-col items-center space-y-2">
+                <span class="text-green-500 font-bold text-lg">Analysis Complete!</span>
+                <h2 class="text-3xl font-bold">Your Smile Score</h2>
+                <div class="text-6xl font-extrabold text-pink-600" id="smile-score-display"></div>
+            </div>
+
+            <div id="results-image-container" class="relative w-full h-48 rounded-xl overflow-hidden shadow-md">
+                <img id="results-image" class="absolute inset-0 w-full h-full object-contain" />
+                <canvas id="results-canvas" class="absolute inset-0 w-full h-full"></canvas>
+            </div>
+
+            <div class="flex items-center justify-between p-4 bg-yellow-100 rounded-xl shadow-inner">
+                <span class="font-semibold text-lg text-yellow-800">Your Discount:</span>
+                <span id="discount-percent" class="text-3xl font-extrabold text-[#e91e63]">0%</span>
+            </div>
+
+            <p class="text-center text-gray-600 font-medium">
+                To get a detailed review of your smile and find the perfect correction procedure, please click below to
+                chat with our expert and attach a screenshot of this page.
+            </p>
+
+            <a id="whatsapp-link" href="#" target="_blank"
+                class="inline-block w-full gradient-bg text-white font-bold py-3 px-6 rounded-full shadow-lg transition-colors duration-300 text-center">
+                Need Review with Expert
+            </a>
+        </div>
+    </div>
+
+    <!-- Modal for Error/Guidance Messages -->
+    <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-xl p-6 w-full max-w-sm text-center shadow-2xl space-y-4">
+            <h3 id="modal-title" class="text-xl font-bold"></h3>
+            <p id="modal-message" class="text-gray-600"></p>
+            <button id="modal-close-btn"
+                class="w-full bg-[#e91e63] text-white font-semibold py-2 px-4 rounded-full shadow-lg hover:bg-[#c2185b] transition-colors duration-300">
+                OK
+            </button>
+        </div>
+    </div>
+    
+    <!-- Link to your local JavaScript file -->
+    <script src="script.js"></script>
+</body>
+
+</html>                I've completed the form
             </button>
         </div>
 
