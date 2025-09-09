@@ -1,45 +1,50 @@
-<!-- index.html - optimized for Vercel deployment (fully static, serverless, no backend APIs) -->
+<!-- index.html - optimized for Vercel with inlined critical CSS -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Smile Analyzer</title>
+  <style>
+    /* --- Critical CSS for faster first paint --- */
+    body { margin: 0; font-family: sans-serif; background: #f9fafb; }
+    .btn-primary { background: #2563eb; color: white; padding: 0.5rem 1rem; border-radius: 0.75rem; border: none; cursor: pointer; font-weight: 600; }
+    .btn-secondary { background: #6b7280; color: white; padding: 0.5rem 1rem; border-radius: 0.75rem; border: none; cursor: pointer; font-weight: 600; }
+    .hidden { display: none; }
+    #image-preview { min-height: 200px; border: 2px dashed #d1d5db; border-radius: 0.75rem; display: flex; align-items: center; justify-content: center; }
+    #results-image { max-width: 100%; border-radius: 1rem; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    #modal { background: rgba(0,0,0,0.5); }
+    #modal > div { background: white; border-radius: 0.75rem; }
+  </style>
   <link rel="stylesheet" href="style.css" />
 </head>
-<body class="bg-gray-50">
+<body>
   <main class="max-w-3xl mx-auto p-4">
     <h1 class="text-3xl font-bold text-center mb-4">Smile Analyzer</h1>
 
-    <!-- Form Section -->
     <section id="form-section" class="text-center mb-6">
       <button id="form-complete-btn" class="btn-primary">I've completed the form</button>
     </section>
 
-    <!-- Upload Section -->
     <section id="upload-section" class="hidden">
       <h2 class="text-xl font-semibold mb-2">Upload or Capture Photo</h2>
       <input type="file" accept="image/*" id="image-upload" class="mb-4" />
       <button id="camera-btn" class="btn-secondary mb-4">Take Photo</button>
-      <div id="image-preview" class="border rounded-xl p-2 min-h-[200px] flex justify-center items-center text-gray-400">
-        Image preview will appear here
-      </div>
+      <div id="image-preview" class="text-gray-400">Image preview will appear here</div>
       <button id="analyze-btn" class="btn-primary mt-4" disabled>Analyze My Smile</button>
     </section>
 
-    <!-- Results Section -->
     <section id="results-section" class="hidden mt-6">
       <h2 class="text-xl font-semibold">Results</h2>
       <div id="results-image-container" class="my-4">
-        <img id="results-image" alt="Analysis results" class="max-w-full rounded-xl shadow" />
+        <img id="results-image" alt="Analysis results" />
       </div>
       <p class="text-lg font-bold">Smile Score: <span id="smile-score-display"></span></p>
       <p class="text-lg">Discount: <span id="discount-percent"></span></p>
     </section>
 
-    <!-- Modal -->
-    <div id="modal" class="hidden fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-      <div class="bg-white p-4 rounded-xl shadow max-w-md w-full">
+    <div id="modal" class="hidden fixed inset-0 flex items-center justify-center">
+      <div class="p-4 max-w-md w-full">
         <h3 id="modal-title" class="text-lg font-bold mb-2"></h3>
         <p id="modal-message" class="mb-4"></p>
         <button id="modal-close-btn" class="btn-primary w-full">OK</button>
@@ -47,7 +52,6 @@
     </div>
   </main>
 
-  <!-- Load our script -->
   <script src="script.js" defer></script>
 </body>
 </html>
