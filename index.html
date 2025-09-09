@@ -1,4 +1,4 @@
-<!-- index.html - optimized for Vercel with inlined critical CSS -->
+<!-- index.html - optimized for Vercel with inlined critical CSS + dark mode -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,15 +6,32 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Smile Analyzer</title>
   <style>
-    /* --- Critical CSS for faster first paint --- */
-    body { margin: 0; font-family: sans-serif; background: #f9fafb; }
-    .btn-primary { background: #2563eb; color: white; padding: 0.5rem 1rem; border-radius: 0.75rem; border: none; cursor: pointer; font-weight: 600; }
-    .btn-secondary { background: #6b7280; color: white; padding: 0.5rem 1rem; border-radius: 0.75rem; border: none; cursor: pointer; font-weight: 600; }
+    :root {
+      --bg: #f9fafb;
+      --text: #111827;
+      --btn-primary: #2563eb;
+      --btn-secondary: #6b7280;
+      --preview-border: #d1d5db;
+      --modal-bg: rgba(0, 0, 0, 0.5);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #111827;
+        --text: #f9fafb;
+        --btn-primary: #3b82f6;
+        --btn-secondary: #9ca3af;
+        --preview-border: #374151;
+        --modal-bg: rgba(255, 255, 255, 0.1);
+      }
+    }
+    body { margin: 0; font-family: sans-serif; background: var(--bg); color: var(--text); }
+    .btn-primary { background: var(--btn-primary); color: white; padding: 0.5rem 1rem; border-radius: 0.75rem; border: none; cursor: pointer; font-weight: 600; }
+    .btn-secondary { background: var(--btn-secondary); color: white; padding: 0.5rem 1rem; border-radius: 0.75rem; border: none; cursor: pointer; font-weight: 600; }
     .hidden { display: none; }
-    #image-preview { min-height: 200px; border: 2px dashed #d1d5db; border-radius: 0.75rem; display: flex; align-items: center; justify-content: center; }
+    #image-preview { min-height: 200px; border: 2px dashed var(--preview-border); border-radius: 0.75rem; display: flex; align-items: center; justify-content: center; }
     #results-image { max-width: 100%; border-radius: 1rem; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
-    #modal { background: rgba(0,0,0,0.5); }
-    #modal > div { background: white; border-radius: 0.75rem; }
+    #modal { background: var(--modal-bg); }
+    #modal > div { background: var(--bg); border-radius: 0.75rem; color: var(--text); }
   </style>
   <link rel="stylesheet" href="style.css" />
 </head>
