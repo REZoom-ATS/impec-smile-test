@@ -31,7 +31,6 @@ function onOpenCvReady() {
   enableUI();
 }
 
-// Enable buttons once both libs are ready
 function enableUI() {
   if (modelLoaded && cvReady) {
     cameraBtn.disabled = false;
