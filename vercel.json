@@ -12,10 +12,21 @@
   ],
   "headers": [
     {
+      "source": "/(.*)\\.(js|css)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" },
+        { "key": "Content-Encoding", "value": "br" }
+      ]
+    },
+    {
       "source": "/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=3600, immutable" }
       ]
     }
-  ]
+  ],
+  "images": {
+    "sizes": [320, 640, 960, 1200, 1600],
+    "formats": ["image/avif", "image/webp"]
+  }
 }
