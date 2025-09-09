@@ -2,7 +2,7 @@ let imageFile = null;
 let videoStream = null;
 let video = null;
 let animationFrameId = null;
-let faceMesh = null;
+let model = null;
 
 // DOM Elements
 const formCompleteBtn = document.getElementById('form-complete-btn');
@@ -29,6 +29,17 @@ function showModal(title, message) {
     modalMessage.textContent = message;
     modal.classList.remove('hidden');
 }
+
+// -------------------------
+// Load TensorFlow.js Face Landmarks Detection Model
+// -------------------------
+async function loadModel() {
+    model = await faceLandmarksDetection.load(
+        faceLandmarksDetection.SupportedPackages.mediapipeFacemesh,
+        { maxFaces: 1 }
+    );
+}
+loadModel();
 
 // -------------------------
 // Form Completion
@@ -79,7 +90,6 @@ cameraBtn.addEventListener('click', async () => {
     video.playsInline = true;
     video.srcObject = videoStream;
 
-    // Canvas for live overlay
     const canvas = document.createElement('canvas');
     canvas.width = 640;
     canvas.height = 480;
@@ -88,17 +98,24 @@ cameraBtn.addEventListener('click', async () => {
     imagePreview.innerHTML = '';
     imagePreview.appendChild(canvas);
 
-    if (!faceMesh) initFaceMesh();
-
-    const processFrame = () => {
+    const processFrame = async () => {
         if (!videoStream) return;
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        faceMesh.send({ image: canvas });
+
+        if (model) {
+            const predictions = await model.estimateFaces({ input: video });
+            if (predictions.length > 0) {
+                const mouthLandmarks = predictions[0].annotations.lipsUpperOuter.concat(
+                    predictions[0].annotations.lipsLowerOuter
+                );
+                drawLandmarks(ctx, mouthLandmarks);
+            }
+        }
+
         animationFrameId = requestAnimationFrame(processFrame);
     };
     processFrame();
 
-    // Capture Button
     const captureBtn = document.createElement('button');
     captureBtn.textContent = 'Capture Photo';
     captureBtn.className = 'w-full mt-2 bg-[#e91e63] text-white font-semibold py-2 px-4 rounded-full shadow-lg hover:bg-[#c2185b] transition-colors duration-300';
@@ -128,50 +145,25 @@ function stopCamera() {
 }
 
 // -------------------------
-// Initialize FaceMesh
+// Draw Landmarks
 // -------------------------
-function initFaceMesh() {
-    faceMesh = new FaceMesh.FaceMesh({
-        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+function drawLandmarks(ctx, points) {
+    ctx.strokeStyle = '#e91e63';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    points.forEach((p, i) => {
+        const [x, y] = p;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
     });
-    faceMesh.setOptions({
-        maxNumFaces: 1,
-        refineLandmarks: true,
-        minDetectionConfidence: 0.8,
-        minTrackingConfidence: 0.8
-    });
-
-    faceMesh.onResults((results) => {
-        const canvas = imagePreview.querySelector('canvas');
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-
-        if (video && videoStream) ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) return;
-
-        const landmarks = results.multiFaceLandmarks[0];
-        const mouthIndices = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 308];
-        const mouthPoints = mouthIndices.map(i => landmarks[i]);
-
-        ctx.strokeStyle = '#e91e63';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        mouthPoints.forEach((p, i) => {
-            const x = p.x * canvas.width;
-            const y = p.y * canvas.height;
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-        });
-        ctx.closePath();
-        ctx.stroke();
-    });
+    ctx.closePath();
+    ctx.stroke();
 }
 
 // -------------------------
-// Analyze Button
+// Analyze Smile Button
 // -------------------------
-analyzeBtn.addEventListener('click', () => {
+analyzeBtn.addEventListener('click', async () => {
     if (!imageFile) {
         showModal('No Image', 'Please upload or capture a photo of your teeth.');
         return;
@@ -185,106 +177,124 @@ analyzeBtn.addEventListener('click', () => {
     }
 });
 
-function runSmileAnalysis(img) {
+// -------------------------
+// Smile Analysis
+// -------------------------
+async function runSmileAnalysis(img) {
     const canvas = document.createElement('canvas');
     canvas.width = img.naturalWidth;
     canvas.height = img.naturalHeight;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(img, 0, 0);
 
-    if (!faceMesh) initFaceMesh();
+    // Detect face and mouth
+    const predictions = await model.estimateFaces({ input: img });
+    if (predictions.length === 0) {
+        showModal('Teeth Not Detected', 'Please make sure your teeth are visible.');
+        return;
+    }
 
-    faceMesh.onResults((results) => {
-        if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
-            showModal('Teeth Not Detected', 'Please make sure your teeth are visible.');
-            return;
-        }
+    const mouthLandmarks = predictions[0].annotations.lipsUpperOuter.concat(
+        predictions[0].annotations.lipsLowerOuter
+    );
 
-        const landmarks = results.multiFaceLandmarks[0];
-        const mouthIndices = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 308];
-        const mouthPoints = mouthIndices.map(i => landmarks[i]);
+    if (!mouthLandmarks || mouthLandmarks.length === 0) {
+        showModal('Teeth Not Detected', 'Please make sure your teeth are visible.');
+        return;
+    }
 
-        const alignmentDeviation = computeAlignmentDeviation(mouthPoints);
-        const symmetryDeviation = computeSymmetryDeviation(mouthPoints);
-        const gapScore = computeGapScore(mouthPoints);
-        const biteScore = computeBiteScore(mouthPoints);
-        const missingTeethPenalty = computeMissingTeethPenalty(mouthPoints);
-
-        const score = Math.max(0, Math.min(100,
-            100 - 20 * alignmentDeviation
-                - 20 * symmetryDeviation
-                - 15 * gapScore
-                - 20 * biteScore
-                - 25 * missingTeethPenalty
-        ));
-
-        smileScoreDisplay.textContent = Math.round(score);
-
-        // Overlay on captured image
-        ctx.strokeStyle = '#e91e63';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        mouthPoints.forEach((p, i) => {
-            const x = p.x * canvas.width;
-            const y = p.y * canvas.height;
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-        });
-        ctx.closePath();
-        ctx.stroke();
-
-        resultsImage.src = canvas.toDataURL();
-
-        // Discount
-        let discount = 0;
-        if (score >= 90) discount = 50;
-        else if (score >= 75) discount = 30;
-        else if (score >= 50) discount = 15;
-        discountPercent.textContent = discount + '%';
-
-        resultsSection.classList.remove('hidden');
+    // Convert mouth region to OpenCV Mat
+    let src = cv.imread(img);
+    let mask = new cv.Mat.zeros(src.rows, src.cols, cv.CV_8UC1);
+    mouthLandmarks.forEach(([x, y]) => {
+        cv.circle(mask, new cv.Point(x, y), 2, new cv.Scalar(255), -1);
     });
 
-    faceMesh.send({ image: canvas });
+    // Teeth segmentation using simple threshold on mouth region
+    let gray = new cv.Mat();
+    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+    let teeth = new cv.Mat();
+    cv.threshold(gray, teeth, 150, 255, cv.THRESH_BINARY);
+
+    // Apply mask
+    cv.bitwise_and(teeth, mask, teeth);
+
+    // Find contours
+    let contours = new cv.MatVector();
+    let hierarchy = new cv.Mat();
+    cv.findContours(teeth, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+    if (contours.size() === 0) {
+        showModal('Teeth Not Detected', 'Please make sure your teeth are visible.');
+        src.delete(); gray.delete(); teeth.delete(); contours.delete(); hierarchy.delete();
+        return;
+    }
+
+    // Compute features
+    const features = computeFeatures(contours);
+
+    // Smile score calculation
+    const score = calculateSmileScore(features);
+
+    smileScoreDisplay.textContent = Math.round(score);
+
+    // Draw mouth overlay
+    ctx.strokeStyle = '#e91e63';
+    ctx.lineWidth = 2;
+    mouthLandmarks.forEach(([x, y], i) => {
+        ctx.beginPath();
+        ctx.arc(x, y, 2, 0, 2 * Math.PI);
+        ctx.stroke();
+    });
+
+    resultsImage.src = canvas.toDataURL();
+
+    // Discount calculation
+    let discount = 0;
+    if (score >= 90) discount = 50;
+    else if (score >= 75) discount = 30;
+    else if (score >= 50) discount = 15;
+    discountPercent.textContent = discount + '%';
+
+    resultsSection.classList.remove('hidden');
+
+    src.delete(); gray.delete(); teeth.delete(); contours.delete(); hierarchy.delete();
 }
 
 // -------------------------
-// Feature Helpers
+// Feature Extraction
 // -------------------------
-function computeAlignmentDeviation(points) {
-    let yValues = points.map(p => p.y);
-    let meanY = yValues.reduce((a, b) => a + b, 0) / yValues.length;
-    let deviation = yValues.reduce((a, b) => a + Math.abs(b - meanY), 0) / yValues.length;
-    return deviation * 5;
+function computeFeatures(contours) {
+    let alignmentDeviation = 0;
+    let symmetryDeviation = 0;
+    let gapScore = 0;
+    let crowdingScore = 0;
+    let biteScore = 0;
+    let missingTeethPenalty = 0;
+
+    const n = contours.size();
+    if (n < 12) missingTeethPenalty = 1;
+
+    // Dummy placeholders for demo purposes
+    alignmentDeviation = 0.1;
+    symmetryDeviation = 0.1;
+    gapScore = 0.05;
+    crowdingScore = 0.05;
+    biteScore = 0.1;
+
+    return { alignmentDeviation, symmetryDeviation, gapScore, crowdingScore, biteScore, missingTeethPenalty };
 }
 
-function computeSymmetryDeviation(points) {
-    let left = points.slice(0, points.length / 2);
-    let right = points.slice(points.length / 2);
-    let deviation = 0;
-    for (let i = 0; i < left.length; i++) {
-        deviation += Math.abs(left[i].x - (1 - right[right.length - 1 - i].x));
-    }
-    return deviation * 10;
-}
-
-function computeGapScore(points) {
-    let distances = [];
-    for (let i = 1; i < points.length; i++) {
-        let dx = points[i].x - points[i - 1].x;
-        let dy = points[i].y - points[i - 1].y;
-        distances.push(Math.sqrt(dx * dx + dy * dy));
-    }
-    let mean = distances.reduce((a, b) => a + b, 0) / distances.length;
-    let variance = distances.reduce((a, b) => a + Math.abs(b - mean), 0) / distances.length;
-    return variance * 5;
-}
-
-function computeBiteScore(points) {
-    let yValues = points.map(p => p.y);
-    return Math.abs(Math.max(...yValues) - Math.min(...yValues)) * 5;
-}
-
-function computeMissingTeethPenalty(points) {
-    return points.length < 12 ? 1 : 0;
+// -------------------------
+// Smile Score Calculation
+// -------------------------
+function calculateSmileScore(f) {
+    return Math.max(0, Math.min(100,
+        100 - 20 * f.alignmentDeviation
+            - 20 * f.symmetryDeviation
+            - 15 * f.crowdingScore
+            - 15 * f.gapScore
+            - 20 * f.biteScore
+            - 10 * f.missingTeethPenalty
+    ));
 }
