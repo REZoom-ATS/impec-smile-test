@@ -1,153 +1,246 @@
-let videoStream = null;
-let video = null;
-let animationFrameId = null;
-let model = null;
-let modelLoaded = false;
-let cvReady = false;
+document.addEventListener('DOMContentLoaded', () => {
+  const imageUpload = document.getElementById('image-upload');
+  const analyzeBtn = document.getElementById('analyze-btn');
+  const resultsImage = document.getElementById('results-image');
+  const smileScoreDisplay = document.getElementById('smile-score-display');
+  const resultsSection = document.getElementById('results-section');
+  const cameraBtn = document.getElementById('camera-btn');
+  const imagePreview = document.getElementById('image-preview');
 
-// DOM
-const imageUpload = document.getElementById('image-upload');
-const analyzeBtn = document.getElementById('analyze-btn');
-const imagePreview = document.getElementById('image-preview');
-const cameraBtn = document.getElementById('camera-btn');
+  let uploadedFile = null;
+  let videoStream = null;
 
-// ==========================
-// LOAD MODELS
-// ==========================
-async function initModels() {
-  console.log("Loading Face Landmarks Model...");
-  model = await faceLandmarksDetection.load(
-    faceLandmarksDetection.SupportedPackages.mediapipeFacemesh,
-    { maxFaces: 1 }
-  );
-  modelLoaded = true;
-  console.log("Face Landmarks Model Loaded.");
-  enableUI();
-}
-
-function onOpenCvReady() {
-  cvReady = true;
-  console.log("OpenCV.js Loaded.");
-  enableUI();
-}
-
-function enableUI() {
-  if (modelLoaded && cvReady) {
-    cameraBtn.disabled = false;
-    analyzeBtn.disabled = false;
-  }
-}
-
-initModels();
-
-// ==========================
-// CAMERA HANDLING
-// ==========================
-cameraBtn.addEventListener("click", async () => {
-  if (videoStream) stopCamera();
-
-  try {
-    videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
-  } catch (err) {
-    alert("Camera access denied or not available.");
-    return;
-  }
-
-  video = document.createElement("video");
-  video.autoplay = true;
-  video.playsInline = true;
-  video.srcObject = videoStream;
-  await video.play();
-
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-  imagePreview.innerHTML = "";
-  imagePreview.appendChild(canvas);
-
-  video.addEventListener("loadedmetadata", () => {
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    drawLoop(ctx, canvas);
+  imageUpload.addEventListener('change', (e) => {
+    uploadedFile = e.target.files[0];
+    showPreview(uploadedFile);
+    analyzeBtn.disabled = !uploadedFile;
   });
+
+  cameraBtn.addEventListener('click', async () => {
+    if (!videoStream) {
+      try {
+        videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const video = document.createElement('video');
+        video.autoplay = true;
+        video.srcObject = videoStream;
+        video.classList.add('rounded-xl', 'w-full', 'h-full', 'object-cover');
+        imagePreview.innerHTML = "";
+        imagePreview.appendChild(video);
+
+        // Add capture button dynamically
+        const captureBtn = document.createElement('button');
+        captureBtn.textContent = "Capture Photo";
+        captureBtn.className = "w-full bg-pink-500 text-white mt-2 py-2 px-4 rounded-full shadow-md hover:bg-pink-600 transition";
+        imagePreview.appendChild(captureBtn);
+
+        captureBtn.addEventListener('click', () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(video, 0, 0);
+          stopCamera();
+
+          // Convert to file-like object
+          canvas.toBlob(blob => {
+            uploadedFile = new File([blob], "captured.jpg", { type: "image/jpeg" });
+            showPreview(uploadedFile);
+            analyzeBtn.disabled = false;
+          }, "image/jpeg");
+        });
+      } catch (err) {
+        alert("Unable to access camera. Please allow camera permissions.");
+      }
+    }
+  });
+
+  function stopCamera() {
+    if (videoStream) {
+      videoStream.getTracks().forEach(track => track.stop());
+      videoStream = null;
+    }
+  }
+
+  function showPreview(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      imagePreview.innerHTML = `<img src="${e.target.result}" class="rounded-xl w-full h-full object-cover"/>`;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  analyzeBtn.addEventListener('click', async () => {
+    if (!uploadedFile) return;
+
+    const dataURL = await fileToDataURL(uploadedFile);
+    const img = await loadImage(dataURL);
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    ctx.drawImage(img, 0, 0);
+
+    let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+    // === Preprocessing: normalize brightness/contrast ===
+    normalizeImage(imageData);
+
+    const score = enhancedSmileAnalysis(imageData);
+
+    resultsImage.src = canvas.toDataURL('image/png');
+    smileScoreDisplay.textContent = score.toFixed(0);
+    resultsSection.classList.remove('hidden');
+  });
+
+  function fileToDataURL(file) {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+  }
+
+  function loadImage(src) {
+    return new Promise((res, rej) => {
+      const img = new Image();
+      img.onload = () => res(img);
+      img.onerror = rej;
+      img.src = src;
+    });
+  }
+
+  // === Enhanced Analysis ===
+  function enhancedSmileAnalysis(imageData) {
+    const { data, width, height } = imageData;
+    const gray = new Float32Array(width * height);
+
+    // Step 1: Build grayscale + compute mean brightness
+    let sum = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      const g = (data[i] + data[i + 1] + data[i + 2]) / 3;
+      gray[i / 4] = g / 255;
+      sum += g / 255;
+    }
+    const mean = sum / gray.length;
+
+    // Step 2: Adaptive thresholding (local window)
+    const mask = new Uint8Array(width * height);
+    const windowSize = 15; // local region
+    const half = Math.floor(windowSize / 2);
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        let localSum = 0, count = 0;
+        for (let wy = -half; wy <= half; wy++) {
+          for (let wx = -half; wx <= half; wx++) {
+            const nx = x + wx, ny = y + wy;
+            if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+              localSum += gray[ny * width + nx];
+              count++;
+            }
+          }
+        }
+        const localMean = localSum / count;
+        if (gray[y * width + x] > Math.max(localMean * 1.1, mean * 1.05)) {
+          mask[y * width + x] = 1;
+        }
+      }
+    }
+
+    // Step 3: Morphological cleanup
+    morphClose(mask, width, height);
+    morphOpen(mask, width, height);
+
+    // Step 4: Connected component labeling
+    const { count } = labelComponents(mask, width, height);
+
+    // Step 5: Symmetry check (approx)
+    let leftCount = 0, rightCount = 0;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (mask[y * width + x]) {
+          if (x < width / 2) leftCount++; else rightCount++;
+        }
+      }
+    }
+    const symmetry = 1 - Math.abs(leftCount - rightCount) / (leftCount + rightCount + 1);
+
+    // Step 6: Compute final score
+    const alignmentScore = Math.min(1, count / 28);
+    const score = 100 * 0.5 * alignmentScore + 100 * 0.3 * symmetry + 20; // weighted
+    return Math.max(0, Math.min(100, score));
+  }
+
+  function normalizeImage(imageData) {
+    const { data } = imageData;
+    let min = 255, max = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      const v = (data[i] + data[i + 1] + data[i + 2]) / 3;
+      min = Math.min(min, v);
+      max = Math.max(max, v);
+    }
+    const range = max - min || 1;
+    for (let i = 0; i < data.length; i += 4) {
+      for (let j = 0; j < 3; j++) {
+        let norm = (data[i + j] - min) / range * 255;
+        data[i + j] = Math.max(0, Math.min(255, norm));
+      }
+    }
+  }
+
+  function morphClose(mask, w, h) {
+    // Fill small gaps (dilation then erosion)
+    const temp = mask.slice();
+    for (let i = 0; i < w * h; i++) {
+      if (mask[i]) continue;
+      // check neighbors
+      let hasNeighbor = false;
+      for (const n of [i - 1, i + 1, i - w, i + w]) {
+        if (n >= 0 && n < w * h && mask[n]) { hasNeighbor = true; break; }
+      }
+      if (hasNeighbor) temp[i] = 1;
+    }
+    temp.forEach((v, i) => mask[i] = v);
+  }
+
+  function morphOpen(mask, w, h) {
+    // Remove small noise (erosion then dilation)
+    const temp = mask.slice();
+    for (let i = 0; i < w * h; i++) {
+      if (!mask[i]) continue;
+      let isolated = true;
+      for (const n of [i - 1, i + 1, i - w, i + w]) {
+        if (n >= 0 && n < w * h && mask[n]) { isolated = false; break; }
+      }
+      if (isolated) temp[i] = 0;
+    }
+    temp.forEach((v, i) => mask[i] = v);
+  }
+
+  function labelComponents(mask, w, h) {
+    const labels = new Int32Array(w * h).fill(0);
+    let label = 0;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const idx = y * w + x;
+        if (mask[idx] && labels[idx] === 0) {
+          label++;
+          const stack = [idx];
+          labels[idx] = label;
+          while (stack.length) {
+            const p = stack.pop();
+            for (const n of [p - 1, p + 1, p - w, p + w]) {
+              if (n >= 0 && n < w * h && mask[n] && labels[n] === 0) {
+                labels[n] = label;
+                stack.push(n);
+              }
+            }
+          }
+        }
+      }
+    }
+    return { labels, count: label };
+  }
 });
-
-function drawLoop(ctx, canvas) {
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-  animationFrameId = requestAnimationFrame(() => drawLoop(ctx, canvas));
-}
-
-function stopCamera() {
-  if (videoStream) {
-    videoStream.getTracks().forEach(track => track.stop());
-    videoStream = null;
-  }
-  if (animationFrameId) cancelAnimationFrame(animationFrameId);
-  animationFrameId = null;
-}
-
-// ==========================
-// IMAGE UPLOAD
-// ==========================
-imageUpload.addEventListener("change", e => {
-  stopCamera();
-  const file = e.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = () => {
-    imagePreview.innerHTML = `<img id="uploaded-img" src="${reader.result}" class="rounded-xl w-full"/>`;
-  };
-  reader.readAsDataURL(file);
-});
-
-// ==========================
-// ANALYZE SMILE
-// ==========================
-analyzeBtn.addEventListener("click", async () => {
-  if (!modelLoaded || !cvReady) {
-    alert("Please wait until models finish loading.");
-    return;
-  }
-
-  let img = document.getElementById("uploaded-img");
-  if (!img) {
-    alert("Please upload or capture a photo first.");
-    return;
-  }
-
-  if (!img.complete) {
-    img.onload = () => processImage(img);
-  } else {
-    processImage(img);
-  }
-});
-
-async function processImage(img) {
-  // STEP 1: Detect landmarks
-  const predictions = await model.estimateFaces({ input: img });
-  if (!predictions.length) {
-    alert("No face detected or teeth not visible.");
-    return;
-  }
-
-  // STEP 2: OpenCV processing
-  let src = cv.imread(img);
-  cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY);
-  cv.threshold(src, src, 150, 255, cv.THRESH_BINARY);
-
-  let contours = new cv.MatVector();
-  let hierarchy = new cv.Mat();
-  cv.findContours(src, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
-
-  if (contours.size() === 0) {
-    alert("No teeth detected. Please show your teeth clearly.");
-    src.delete(); contours.delete(); hierarchy.delete();
-    return;
-  }
-
-  // Example: Deterministic "smile score"
-  let score = Math.min(100, Math.max(0, 100 - contours.size() * 2));
-  alert("Smile Score: " + score);
-
-  src.delete(); contours.delete(); hierarchy.delete();
-}
