@@ -1,128 +1,186 @@
+// script.js with Debug Overlays for Smile Analysis
+
 document.addEventListener('DOMContentLoaded', () => {
-    const formSection = document.getElementById('form-section');
-    const uploadSection = document.getElementById('upload-section');
-    const resultsSection = document.getElementById('results-section');
-    const formCompleteBtn = document.getElementById('form-complete-btn');
-    const imageUpload = document.getElementById('image-upload');
-    const cameraBtn = document.getElementById('camera-btn');
-    const imagePreview = document.getElementById('image-preview');
-    const analyzeBtn = document.getElementById('analyze-btn');
-    const resultsImage = document.getElementById('results-image');
-    const smileScoreDisplay = document.getElementById('smile-score-display');
-    const discountPercent = document.getElementById('discount-percent');
-    const whatsappLink = document.getElementById('whatsapp-link');
-    const modal = document.getElementById('modal');
-    const modalTitle = document.getElementById('modal-title');
-    const modalMessage = document.getElementById('modal-message');
-    const modalCloseBtn = document.getElementById('modal-close-btn');
+  const imageUpload = document.getElementById('image-upload');
+  const analyzeBtn = document.getElementById('analyze-btn');
+  const imagePreview = document.getElementById('image-preview');
+  const resultsImage = document.getElementById('results-image');
+  const analysisJson = document.getElementById('analysis-json');
+  const detectedIssuesList = document.getElementById('detected-issues-list');
+  const discountPercent = document.getElementById('discount-percent');
+  const resultsSection = document.getElementById('results-section');
 
-    let uploadedFile = null;
+  let uploadedFile = null;
 
-    // --- AI Analysis Logic (Simulated for client-side) ---
-    async function predictOrthodonticIssues() {
-        // This is a simulated prediction function that provides a realistic range of scores.
-        console.log("Making a prediction...");
+  imageUpload.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      uploadedFile = file;
+      analyzeBtn.disabled = false;
 
-        // Define a base score for a "perfect" smile
-        let finalScore = 100;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        imagePreview.innerHTML = `<canvas id="preview-canvas" class="w-full h-full object-contain rounded-xl"></canvas>`;
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.getElementById('preview-canvas');
+          const ctx = canvas.getContext('2d');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+  });
 
-        // Simulate a number of issues to detect (from 1 to 4)
-        const numIssuesToDetect = Math.floor(Math.random() * 4) + 1;
+  analyzeBtn.addEventListener('click', async () => {
+    if (!uploadedFile) return;
+    analyzeBtn.textContent = 'Analyzing...';
+    analyzeBtn.disabled = true;
 
-        // Simulate deduction of points for each issue
-        for (let i = 0; i < numIssuesToDetect; i++) {
-            const deduction = Math.floor(Math.random() * 20) + 5; // Deduct between 5 and 25 points
-            finalScore -= deduction;
-        }
+    const imgElement = document.createElement('img');
+    imgElement.src = URL.createObjectURL(uploadedFile);
+    await imgElement.decode();
 
-        // Ensure the score doesn't fall below a minimum
-        if (finalScore < 50) {
-            finalScore = 50;
-        }
+    const result = await predictOrthodonticIssuesWithDebug(imgElement);
 
-        return finalScore;
+    // Display results
+    analysisJson.textContent = JSON.stringify(result, null, 2);
+    detectedIssuesList.innerHTML = '';
+    if (Object.keys(result.severity).length === 0) {
+      detectedIssuesList.innerHTML = `<li class="list-none text-center">${result.findings_summary}</li>`;
+    } else {
+      for (const issue of Object.keys(result.severity)) {
+        const li = document.createElement('li');
+        li.textContent = `${issue} (${result.severity[issue]})`;
+        detectedIssuesList.appendChild(li);
+      }
     }
 
-    // --- UI and User Flow Logic ---
+    resultsImage.src = imgElement.src;
+    discountPercent.textContent = `${(100 - result.perfect_smile_percentage) * 0.8}%`;
 
-    function showModal(title, message) {
-        modalTitle.textContent = title;
-        modalMessage.textContent = message;
-        modal.classList.remove('hidden');
-    }
-
-    modalCloseBtn.addEventListener('click', () => {
-        modal.classList.add('hidden');
-    });
-
-    formCompleteBtn.addEventListener('click', () => {
-        formSection.classList.add('hidden');
-        uploadSection.classList.remove('hidden');
-    });
-
-    imageUpload.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            uploadedFile = file;
-            analyzeBtn.disabled = false;
-            analyzeBtn.classList.remove('bg-gray-200', 'text-gray-700');
-            analyzeBtn.classList.add('bg-[#e91e63]', 'text-white', 'hover:bg-[#c2185b]');
-
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const img = new Image();
-                img.onload = () => {
-                    imagePreview.innerHTML = `<img id="preview-img" src="${event.target.result}" class="w-full h-full object-contain rounded-xl" />`;
-                };
-                img.src = event.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
-    });
-
-    cameraBtn.addEventListener('click', () => {
-        imageUpload.setAttribute('capture', 'camera');
-        imageUpload.click();
-    });
-
-    analyzeBtn.addEventListener('click', async () => {
-        if (!uploadedFile) {
-            showModal("No Image Uploaded", "Please upload a photo before analysis.");
-            return;
-        }
-
-        analyzeBtn.textContent = 'Analyzing...';
-        analyzeBtn.disabled = true;
-        analyzeBtn.classList.remove('hover:bg-[#c2185b]');
-        analyzeBtn.classList.add('cursor-not-allowed');
-
-        try {
-            const smileScore = await predictOrthodonticIssues();
-            let discount = (100 - smileScore);
-
-            // Cap the discount to be within the 10-40% range
-            if (discount < 10) {
-                discount = 10;
-            }
-            if (discount > 40) {
-                discount = 40;
-            }
-
-            smileScoreDisplay.textContent = `${smileScore}%`;
-            discountPercent.textContent = `${discount}%`;
-            whatsappLink.href = `https://wa.me/916005795693?text=Hi, I just finished the Impec Smile Challenge. Here is a screenshot of my results. I need a review.`;
-
-            // Update the results image and hide the upload section
-            resultsImage.src = URL.createObjectURL(uploadedFile);
-            uploadSection.classList.add('hidden');
-            resultsSection.classList.remove('hidden');
-        } catch (error) {
-            console.error("Analysis failed:", error);
-            showModal("Analysis Error", "We encountered a technical issue. Please try again.");
-        } finally {
-            analyzeBtn.textContent = 'Analyze My Smile';
-            analyzeBtn.disabled = false;
-            analyzeBtn.classList.remove('cursor-not-allowed');
-        }
-    });
+    resultsSection.classList.remove('hidden');
+    analyzeBtn.textContent = 'Analyze My Smile';
+    analyzeBtn.disabled = false;
+  });
 });
+
+async function predictOrthodonticIssuesWithDebug(imageElement) {
+  const tensor = tf.browser.fromPixels(imageElement)
+    .resizeBilinear([256, 256])
+    .toFloat()
+    .div(tf.scalar(255));
+
+  const imageData = await tf.browser.toPixels(tensor);
+  const width = 256;
+  const height = 256;
+
+  function getPixel(i) {
+    return [imageData[i], imageData[i + 1], imageData[i + 2]];
+  }
+
+  let teethMask = new Uint8Array(width * height);
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = (y * width + x) * 4;
+      const [r, g, b] = getPixel(idx);
+      const brightness = (r + g + b) / 3;
+      if (brightness > 200) {
+        teethMask[y * width + x] = 1;
+      }
+    }
+  }
+
+  function getClusters(mask) {
+    const visited = new Uint8Array(mask.length);
+    let clusters = [];
+
+    function floodFill(i, cluster) {
+      if (i < 0 || i >= mask.length || visited[i] || mask[i] === 0) return;
+      visited[i] = 1;
+      cluster.push(i);
+      const neighbors = [i - 1, i + 1, i - width, i + width];
+      neighbors.forEach(n => floodFill(n, cluster));
+    }
+
+    for (let i = 0; i < mask.length; i++) {
+      if (mask[i] === 1 && !visited[i]) {
+        let cluster = [];
+        floodFill(i, cluster);
+        clusters.push(cluster);
+      }
+    }
+    return clusters;
+  }
+
+  const toothClusters = getClusters(teethMask).filter(c => c.length > 30);
+  const toothPositions = toothClusters.map(cluster => {
+    let xs = cluster.map(i => i % width);
+    let ys = cluster.map(i => Math.floor(i / width));
+    return {
+      x: xs.reduce((a, b) => a + b) / xs.length,
+      y: ys.reduce((a, b) => a + b) / ys.length,
+      cluster
+    };
+  }).sort((a, b) => a.x - b.x);
+
+  // Draw debug overlay
+  drawTeethOverlay(toothPositions, width, height);
+
+  let issues = {};
+  let perfectSmileScore = 100;
+
+  for (let i = 0; i < toothPositions.length - 1; i++) {
+    const gap = toothPositions[i + 1].x - toothPositions[i].x;
+    if (gap > 25) {
+      issues['Spacing'] = 'Mild';
+      perfectSmileScore -= 5;
+    }
+  }
+
+  const upperTeeth = toothPositions.filter(p => p.y < height / 2);
+  const lowerTeeth = toothPositions.filter(p => p.y >= height / 2);
+  if (upperTeeth.length > 4 && lowerTeeth.length > 4) {
+    const avgUpperY = upperTeeth.reduce((a, p) => a + p.y, 0) / upperTeeth.length;
+    const avgLowerY = lowerTeeth.reduce((a, p) => a + p.y, 0) / lowerTeeth.length;
+    if (avgUpperY > avgLowerY - 20) {
+      issues['Overbite'] = 'Moderate';
+      perfectSmileScore -= 15;
+    }
+  }
+  if (toothClusters.length < 12) {
+    issues['Crowding'] = 'Moderate';
+    perfectSmileScore -= 15;
+  }
+
+  if (perfectSmileScore < 0) perfectSmileScore = 0;
+
+  return {
+    case_classification: Object.keys(issues).join(' + ') || 'No Orthodontic Treatment Required',
+    severity: issues,
+    findings_summary: Object.keys(issues).length ? Object.entries(issues).map(([k,v]) => `${v} ${k}`).join(', ') : 'No significant orthodontic issues detected.',
+    perfect_smile_percentage: perfectSmileScore
+  };
+}
+
+function drawTeethOverlay(toothPositions, width, height) {
+  const canvas = document.getElementById('preview-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  ctx.strokeStyle = 'lime';
+  ctx.lineWidth = 2;
+
+  toothPositions.forEach(pos => {
+    const minX = Math.min(...pos.cluster.map(i => i % width));
+    const maxX = Math.max(...pos.cluster.map(i => i % width));
+    const minY = Math.min(...pos.cluster.map(i => Math.floor(i / width)));
+    const maxY = Math.max(...pos.cluster.map(i => Math.floor(i / width)));
+    const boxWidth = maxX - minX;
+    const boxHeight = maxY - minY;
+    ctx.strokeRect(minX, minY, boxWidth, boxHeight);
+  });
+}
