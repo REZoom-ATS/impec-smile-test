@@ -1,88 +1,111 @@
-// script.js — upgraded with AI-like reasoning for tooth detection
-// Combines lip detection, tooth detection using brightness, symmetry, curvature splitting, and outline thickness heuristics
-// Adds adaptive thresholding to mimic AI-like decision-making
+<!DOCTYPE html>
+<html lang="en">
 
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Impec: Smile Challenge Check</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
 
-document.addEventListener('DOMContentLoaded', () => {
-const imageUpload = document.getElementById('image-upload');
-const analyzeBtn = document.getElementById('analyze-btn');
-const resultsImage = document.getElementById('results-image');
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
 
+    <!-- Main Container -->
+    <div class="bg-white rounded-3xl shadow-xl w-full max-w-md p-6 sm:p-8 space-y-6 text-center">
 
-let uploadedFile = null;
-imageUpload.addEventListener('change', (e) => { uploadedFile = e.target.files[0]; analyzeBtn.disabled = !uploadedFile; });
+        <!-- Logo and Title Section -->
+        <div class="flex flex-col items-center space-y-4">
+            <!-- Logo image from the assets folder -->
+            <img src="assets/mid-logo.png" alt="Impec Logo" class="w-24 h-24 rounded-full">
+            <h1 class="text-3xl sm:text-4xl font-bold">Impec: Smile Challenge</h1>
+            <p class="text-gray-500 text-sm sm:text-base">Check your smile score and get a coupon for a discount on
+                clear aligners.</p>
+        </div>
 
+        <!-- Google Form Section -->
+        <div id="form-section" class="space-y-4">
+            <h2 class="text-xl font-semibold">Step 1: Fill out the form</h2>
+            <p class="text-gray-600">Please complete this short form before proceeding to the smile analysis.</p>
+            <a href="https://docs.google.com/forms/d/e/1FAIpQLSc4Oh4wdPnIEcQASkgmC8735KRZLxsjjH_XLHSX3W05tM9ocA/viewform?usp=header"
+                target="_blank"
+                class="inline-block w-full bg-[#e91e63] text-white font-semibold py-3 px-6 rounded-full shadow-lg hover:bg-[#c2185b] transition-colors duration-300">
+                Open Google Form
+            </a>
+            <button id="form-complete-btn"
+                class="w-full bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-full shadow-md mt-2 hover:bg-gray-300 transition-colors duration-300">
+                I've completed the form
+            </button>
+        </div>
 
-analyzeBtn.addEventListener('click', async () => {
-if (!uploadedFile) return;
-const dataURL = await fileToDataURL(uploadedFile);
-const img = await loadImage(dataURL);
+        <!-- Image Upload Section -->
+        <div id="upload-section" class="space-y-4 hidden">
+            <h2 class="text-xl font-semibold">Step 2: Upload Your Photo</h2>
+            <p class="text-gray-600">Please provide a clear photo of your teeth for analysis.</p>
 
+            <div id="image-preview" class="w-full h-48 bg-gray-100 rounded-xl flex items-center justify-center p-4">
+                <span class="text-gray-400">Image preview will appear here</span>
+            </div>
 
-const canvas = document.createElement('canvas');
-const ctx = canvas.getContext('2d');
-canvas.width = img.width; canvas.height = img.height;
-ctx.drawImage(img, 0, 0);
-const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            <div class="flex flex-col sm:flex-row sm:space-x-4 space-y-4 sm:space-y-0">
+                <input type="file" id="image-upload" accept="image/*" class="hidden" />
+                <button onclick="document.getElementById('image-upload').click()"
+                    class="w-full bg-[#f8bbd0] text-[#e91e63] font-semibold py-3 px-6 rounded-full shadow-lg hover:bg-[#f48fb1] transition-colors duration-300">
+                    Upload Photo
+                </button>
+                <button id="camera-btn"
+                    class="w-full bg-[#e91e63] text-white font-semibold py-3 px-6 rounded-full shadow-lg hover:bg-[#c2185b] transition-colors duration-300">
+                    Take Photo
+                </button>
+            </div>
+            <button id="analyze-btn" disabled
+                class="w-full bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-full shadow-md mt-2">
+                Analyze My Smile
+            </button>
+        </div>
 
+        <!-- Results Section -->
+        <div id="results-section" class="space-y-6 hidden">
+            <div class="flex flex-col items-center space-y-2">
+                <span class="text-green-500 font-bold text-lg">Analysis Complete!</span>
+                <h2 class="text-3xl font-bold">Your Smile Score</h2>
+                <div class="text-6xl font-extrabold text-pink-600" id="smile-score-display"></div>
+            </div>
 
-const analysis = analyzeSmile(imageData, canvas);
-resultsImage.src = canvas.toDataURL('image/png');
-});
+            <div id="results-image-container" class="w-full h-48 rounded-xl overflow-hidden shadow-md">
+                <img id="results-image" class="w-full h-full object-cover" />
+            </div>
 
+            <div class="flex items-center justify-between p-4 bg-yellow-100 rounded-xl shadow-inner">
+                <span class="font-semibold text-lg text-yellow-800">Your Discount:</span>
+                <span id="discount-percent" class="text-3xl font-extrabold text-[#e91e63]">0%</span>
+            </div>
 
-function fileToDataURL(file) {
-return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); });
-}
-function loadImage(src) {
-return new Promise((res, rej) => { const img = new Image(); img.onload = () => res(img); img.onerror = rej; img.src = src; });
-}
+            <p class="text-center text-gray-600 font-medium">
+                To get a detailed review of your smile and find the perfect correction procedure, please click below to
+                chat with our expert and attach a screenshot of this page.
+            </p>
 
+            <a id="whatsapp-link" href="#" target="_blank"
+                class="inline-block w-full gradient-bg text-white font-bold py-3 px-6 rounded-full shadow-lg transition-colors duration-300 text-center">
+                Need Review with Expert
+            </a>
+        </div>
+    </div>
 
-function rgbToHsl(r, g, b) {
-r /= 255; g /= 255; b /= 255;
-const max = Math.max(r, g, b), min = Math.min(r, g, b);
-let h, s, l = (max + min) / 2;
-if (max === min) { h = s = 0; } else {
-const d = max - min;
-s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-switch (max) {
-case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-case g: h = (b - r) / d + 2; break;
-case b: h = (r - g) / d + 4; break;
-}
-h /= 6;
-}
-return { h, s, l };
-}
+    <!-- Modal for Error/Guidance Messages -->
+    <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-xl p-6 w-full max-w-sm text-center shadow-2xl space-y-4">
+            <h3 id="modal-title" class="text-xl font-bold"></h3>
+            <p id="modal-message" class="text-gray-600"></p>
+            <button id="modal-close-btn"
+                class="w-full bg-[#e91e63] text-white font-semibold py-2 px-4 rounded-full shadow-lg hover:bg-[#c2185b] transition-colors duration-300">
+                OK
+            </button>
+        </div>
+    </div>
 
+    <script src="script.js"></script>
+</body>
 
-function adaptiveToothPixel(r, g, b, meanLight) {
-const { s, l } = rgbToHsl(r, g, b);
-return l > Math.max(0.6, meanLight * 0.9) && s < 0.35;
-}
-
-
-function labelComponents(mask, w, h) {
-const labels = new Int32Array(w * h).fill(0);
-let label = 0;
-for (let y = 0; y < h; y++) {
-for (let x = 0; x < w; x++) {
-const idx = y * w + x;
-if (mask[idx] && labels[idx] === 0) {
-label++; const stack = [idx]; labels[idx] = label;
-while (stack.length) {
-const p = stack.pop();
-const px = p % w, py = Math.floor(p / w);
-for (const n of [p - 1, p + 1, p - w, p + w]) {
-if (n >= 0 && n < w * h && mask[n] && labels[n] === 0) { labels[n] = label; stack.push(n); }
-}
-}
-}
-}
-}
-return { labels, count: label };
-}
-
-
-});
+</html>
