@@ -1,111 +1,53 @@
+<!-- index.html - optimized for Vercel deployment (fully static, serverless, no backend APIs) -->
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Impec: Smile Challenge Check</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smile Analyzer</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
+<body class="bg-gray-50">
+  <main class="max-w-3xl mx-auto p-4">
+    <h1 class="text-3xl font-bold text-center mb-4">Smile Analyzer</h1>
 
-<body class="min-h-screen flex flex-col items-center justify-center p-4">
+    <!-- Form Section -->
+    <section id="form-section" class="text-center mb-6">
+      <button id="form-complete-btn" class="btn-primary">I've completed the form</button>
+    </section>
 
-    <!-- Main Container -->
-    <div class="bg-white rounded-3xl shadow-xl w-full max-w-md p-6 sm:p-8 space-y-6 text-center">
+    <!-- Upload Section -->
+    <section id="upload-section" class="hidden">
+      <h2 class="text-xl font-semibold mb-2">Upload or Capture Photo</h2>
+      <input type="file" accept="image/*" id="image-upload" class="mb-4" />
+      <button id="camera-btn" class="btn-secondary mb-4">Take Photo</button>
+      <div id="image-preview" class="border rounded-xl p-2 min-h-[200px] flex justify-center items-center text-gray-400">
+        Image preview will appear here
+      </div>
+      <button id="analyze-btn" class="btn-primary mt-4" disabled>Analyze My Smile</button>
+    </section>
 
-        <!-- Logo and Title Section -->
-        <div class="flex flex-col items-center space-y-4">
-            <!-- Logo image from the assets folder -->
-            <img src="assets/mid-logo.png" alt="Impec Logo" class="w-24 h-24 rounded-full">
-            <h1 class="text-3xl sm:text-4xl font-bold">Impec: Smile Challenge</h1>
-            <p class="text-gray-500 text-sm sm:text-base">Check your smile score and get a coupon for a discount on
-                clear aligners.</p>
-        </div>
+    <!-- Results Section -->
+    <section id="results-section" class="hidden mt-6">
+      <h2 class="text-xl font-semibold">Results</h2>
+      <div id="results-image-container" class="my-4">
+        <img id="results-image" alt="Analysis results" class="max-w-full rounded-xl shadow" />
+      </div>
+      <p class="text-lg font-bold">Smile Score: <span id="smile-score-display"></span></p>
+      <p class="text-lg">Discount: <span id="discount-percent"></span></p>
+    </section>
 
-        <!-- Google Form Section -->
-        <div id="form-section" class="space-y-4">
-            <h2 class="text-xl font-semibold">Step 1: Fill out the form</h2>
-            <p class="text-gray-600">Please complete this short form before proceeding to the smile analysis.</p>
-            <a href="https://docs.google.com/forms/d/e/1FAIpQLSc4Oh4wdPnIEcQASkgmC8735KRZLxsjjH_XLHSX3W05tM9ocA/viewform?usp=header"
-                target="_blank"
-                class="inline-block w-full bg-[#e91e63] text-white font-semibold py-3 px-6 rounded-full shadow-lg hover:bg-[#c2185b] transition-colors duration-300">
-                Open Google Form
-            </a>
-            <button id="form-complete-btn"
-                class="w-full bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-full shadow-md mt-2 hover:bg-gray-300 transition-colors duration-300">
-                I've completed the form
-            </button>
-        </div>
-
-        <!-- Image Upload Section -->
-        <div id="upload-section" class="space-y-4 hidden">
-            <h2 class="text-xl font-semibold">Step 2: Upload Your Photo</h2>
-            <p class="text-gray-600">Please provide a clear photo of your teeth for analysis.</p>
-
-            <div id="image-preview" class="w-full h-48 bg-gray-100 rounded-xl flex items-center justify-center p-4">
-                <span class="text-gray-400">Image preview will appear here</span>
-            </div>
-
-            <div class="flex flex-col sm:flex-row sm:space-x-4 space-y-4 sm:space-y-0">
-                <input type="file" id="image-upload" accept="image/*" class="hidden" />
-                <button onclick="document.getElementById('image-upload').click()"
-                    class="w-full bg-[#f8bbd0] text-[#e91e63] font-semibold py-3 px-6 rounded-full shadow-lg hover:bg-[#f48fb1] transition-colors duration-300">
-                    Upload Photo
-                </button>
-                <button id="camera-btn"
-                    class="w-full bg-[#e91e63] text-white font-semibold py-3 px-6 rounded-full shadow-lg hover:bg-[#c2185b] transition-colors duration-300">
-                    Take Photo
-                </button>
-            </div>
-            <button id="analyze-btn" disabled
-                class="w-full bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-full shadow-md mt-2">
-                Analyze My Smile
-            </button>
-        </div>
-
-        <!-- Results Section -->
-        <div id="results-section" class="space-y-6 hidden">
-            <div class="flex flex-col items-center space-y-2">
-                <span class="text-green-500 font-bold text-lg">Analysis Complete!</span>
-                <h2 class="text-3xl font-bold">Your Smile Score</h2>
-                <div class="text-6xl font-extrabold text-pink-600" id="smile-score-display"></div>
-            </div>
-
-            <div id="results-image-container" class="w-full h-48 rounded-xl overflow-hidden shadow-md">
-                <img id="results-image" class="w-full h-full object-cover" />
-            </div>
-
-            <div class="flex items-center justify-between p-4 bg-yellow-100 rounded-xl shadow-inner">
-                <span class="font-semibold text-lg text-yellow-800">Your Discount:</span>
-                <span id="discount-percent" class="text-3xl font-extrabold text-[#e91e63]">0%</span>
-            </div>
-
-            <p class="text-center text-gray-600 font-medium">
-                To get a detailed review of your smile and find the perfect correction procedure, please click below to
-                chat with our expert and attach a screenshot of this page.
-            </p>
-
-            <a id="whatsapp-link" href="#" target="_blank"
-                class="inline-block w-full gradient-bg text-white font-bold py-3 px-6 rounded-full shadow-lg transition-colors duration-300 text-center">
-                Need Review with Expert
-            </a>
-        </div>
+    <!-- Modal -->
+    <div id="modal" class="hidden fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+      <div class="bg-white p-4 rounded-xl shadow max-w-md w-full">
+        <h3 id="modal-title" class="text-lg font-bold mb-2"></h3>
+        <p id="modal-message" class="mb-4"></p>
+        <button id="modal-close-btn" class="btn-primary w-full">OK</button>
+      </div>
     </div>
+  </main>
 
-    <!-- Modal for Error/Guidance Messages -->
-    <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
-        <div class="bg-white rounded-xl p-6 w-full max-w-sm text-center shadow-2xl space-y-4">
-            <h3 id="modal-title" class="text-xl font-bold"></h3>
-            <p id="modal-message" class="text-gray-600"></p>
-            <button id="modal-close-btn"
-                class="w-full bg-[#e91e63] text-white font-semibold py-2 px-4 rounded-full shadow-lg hover:bg-[#c2185b] transition-colors duration-300">
-                OK
-            </button>
-        </div>
-    </div>
-
-    <script src="script.js"></script>
+  <!-- Load our script -->
+  <script src="script.js" defer></script>
 </body>
-
 </html>
