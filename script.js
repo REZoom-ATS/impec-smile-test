@@ -19,41 +19,65 @@ document.addEventListener('DOMContentLoaded', () => {
     const resultsCanvas = document.getElementById('results-canvas');
 
     let uploadedFile = null;
+    let model = null;
+
+    // Load the FaceMesh model once at the beginning
+    async function loadModel() {
+        if (!model) {
+            console.log("Loading FaceMesh model...");
+            model = await facemesh.load({ maxFaces: 1 });
+            console.log("Model loaded successfully.");
+        }
+    }
 
     // --- AI Analysis Logic (Simulated with TensorFlow.js) ---
     async function analyzeSmile(image) {
         console.log("Starting smile analysis on image data...");
 
-        // Load the FaceMesh model
-        // In a real app, you'd load this once and reuse it.
-        const model = await facemesh.load({ maxFaces: 1 });
+        if (!model) {
+            showModal("Model not loaded", "Please try again in a moment as the model is still loading.");
+            return { score: 0, landmarks: null };
+        }
 
-        // Pass the image to the model for facial landmark detection
-        const predictions = await model.estimateFaces(image);
-        
-        // This is a simulated prediction since we cannot access the model's true output
-        const hasLipLandmarks = predictions.length > 0;
-        const hasTeethLandmarks = hasLipLandmarks && Math.random() > 0.1;
-        const hasPerfectAlignment = hasTeethLandmarks && Math.random() > 0.4;
-        const hasGaps = hasTeethLandmarks && Math.random() > 0.5;
-        const hasOverbite = hasTeethLandmarks && Math.random() > 0.7;
+        try {
+            const predictions = await model.estimateFaces(image);
 
-        // Calculate a simulated score
-        let score = 100;
-        if (!hasLipLandmarks) score -= 20;
-        if (!hasTeethLandmarks) score -= 30;
-        if (!hasPerfectAlignment) score -= 25;
-        if (hasGaps) score -= 20;
-        if (hasOverbite) score -= 15;
+            // If a face is detected, proceed with the analysis
+            if (predictions.length > 0) {
+                const landmarks = predictions[0].scaledMesh;
 
-        if (score < 10) score = 10;
-        if (score > 100) score = 100;
-        score = Math.round(score);
+                // --- Start of Smile Analysis Logic ---
+                // This is a simulated score and evaluation based on your criteria,
+                // but using the real landmarks for drawing.
 
-        return {
-            score: score,
-            landmarks: hasTeethLandmarks ? predictions[0].scaledMesh : null
-        };
+                // Simulate detection of key facial landmarks for lips and teeth
+                const hasLipLandmarks = landmarks.length > 0;
+                const hasTeethLandmarks = hasLipLandmarks; // Assume teeth are part of the mouth landmarks
+
+                // Calculate a simulated score based on a few random factors to
+                // demonstrate the analysis logic you described
+                let score = 100;
+                let hasGaps = Math.random() > 0.7; // 30% chance of gaps
+                let hasOverbite = Math.random() > 0.8; // 20% chance of overbite
+
+                if (hasGaps) score -= 20;
+                if (hasOverbite) score -= 15;
+                if (Math.random() > 0.5) score -= 10; // 50% chance of imperfect brightness
+
+                score = Math.max(10, Math.min(100, Math.round(score)));
+
+                return { score: score, landmarks: landmarks, hasGaps: hasGaps, hasOverbite: hasOverbite };
+
+            } else {
+                // If no face is detected
+                return { score: 0, landmarks: null };
+            }
+
+        } catch (error) {
+            console.error("TensorFlow analysis failed:", error);
+            showModal("Analysis Error", "Failed to analyze the image. Please try a different photo.");
+            return { score: 0, landmarks: null };
+        }
     }
 
     function drawAnalysisOverlay(canvas, image, landmarks) {
@@ -65,73 +89,61 @@ document.addEventListener('DOMContentLoaded', () => {
 
         canvas.width = canvasWidth;
         canvas.height = canvasHeight;
-        
-        const scaleX = canvasWidth / imgWidth;
-        const scaleY = canvasHeight / imgHeight;
-        const scale = Math.min(scaleX, scaleY);
+
+        // Calculate scaling to fit image in canvas while maintaining aspect ratio
+        const scale = Math.min(canvasWidth / imgWidth, canvasHeight / imgHeight);
+        const offsetX = (canvasWidth - imgWidth * scale) / 2;
+        const offsetY = (canvasHeight - imgHeight * scale) / 2;
         
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
         if (!landmarks) return;
 
-        // Draw simulated lips as a pink canopy
+        // Draw the lips as a pink canopy
         ctx.strokeStyle = '#E91E63'; // Pink for lips
         ctx.lineWidth = 3;
         ctx.beginPath();
         
-        // This is a placeholder for drawing the lip contour
-        // In a real implementation, you would use the specific landmarks for the lips
-        const lipPoints = [
-            landmarks[61], landmarks[146], landmarks[91], landmarks[181], landmarks[84], landmarks[17],
-            landmarks[314], landmarks[405], landmarks[321], landmarks[375]
-        ];
-        
-        ctx.moveTo(lipPoints[0][0] * scale, lipPoints[0][1] * scale);
-        for(let i = 1; i < lipPoints.length; i++) {
-            ctx.lineTo(lipPoints[i][0] * scale, lipPoints[i][1] * scale);
+        // FaceMesh landmarks for inner and outer lips
+        const outerLips = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375];
+        ctx.moveTo(landmarks[outerLips[0]][0] * scale + offsetX, landmarks[outerLips[0]][1] * scale + offsetY);
+        for(let i = 1; i < outerLips.length; i++) {
+            ctx.lineTo(landmarks[outerLips[i]][0] * scale + offsetX, landmarks[outerLips[i]][1] * scale + offsetY);
         }
         ctx.closePath();
         ctx.stroke();
 
-        // Draw simulated teeth
-        ctx.strokeStyle = '#FFFFFF'; // White for teeth outlines
-        ctx.fillStyle = '#f0f0f0'; // Lighter white for the inner part
-        ctx.lineWidth = 2;
-
-        const teeth = [
-            // Simulating coordinates for the upper teeth
-            { outline: [[160, 240], [175, 240], [175, 260], [160, 260]], inner: [[162, 242], [173, 242], [173, 258], [162, 258]] },
-            { outline: [[180, 240], [195, 240], [195, 260], [180, 260]], inner: [[182, 242], [193, 242], [193, 258], [182, 258]] },
-            { outline: [[200, 240], [215, 240], [215, 260], [200, 260]], inner: [[202, 242], [213, 242], [213, 258], [202, 258]] },
-            { outline: [[220, 240], [235, 240], [235, 260], [220, 260]], inner: [[222, 242], [233, 242], [233, 258], [222, 258]] },
-            // Simulating coordinates for the lower teeth
-            { outline: [[170, 270], [185, 270], [185, 290], [170, 290]], inner: [[172, 272], [183, 272], [183, 288], [172, 288]] },
-            { outline: [[190, 270], [205, 270], [205, 290], [190, 290]], inner: [[192, 272], [203, 272], [203, 288], [192, 288]] },
-            { outline: [[210, 270], [225, 270], [225, 290], [210, 290]], inner: [[212, 272], [223, 272], [223, 288], [212, 288]] },
+        // Simulate drawing teeth outlines based on surrounding landmarks
+        const teethOutlines = [
+            // Example points around the mouth that could be used for teeth
+            [10, 308, 292, 402, 17], // Upper teeth region
+            [17, 402, 292, 308, 10] // Lower teeth region (simplified)
         ];
 
-        teeth.forEach(tooth => {
-            // Draw the inner, brighter part
-            ctx.fillStyle = '#f0f0f0';
-            ctx.beginPath();
-            ctx.moveTo(tooth.inner[0][0] * scale, tooth.inner[0][1] * scale);
-            for(let i = 1; i < tooth.inner.length; i++) {
-                ctx.lineTo(tooth.inner[i][0] * scale, tooth.inner[i][1] * scale);
+        // Draw the inner, brighter part of the teeth
+        ctx.fillStyle = '#f0f0f0'; // Lighter white
+        ctx.beginPath();
+        for (const path of teethOutlines) {
+            ctx.moveTo(landmarks[path[0]][0] * scale + offsetX, landmarks[path[0]][1] * scale + offsetY);
+            for(let i = 1; i < path.length; i++) {
+                ctx.lineTo(landmarks[path[i]][0] * scale + offsetX, landmarks[path[i]][1] * scale + offsetY);
             }
-            ctx.closePath();
-            ctx.fill();
+        }
+        ctx.closePath();
+        ctx.fill();
 
-            // Draw the darker outline
-            ctx.strokeStyle = '#A9A9A9';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(tooth.outline[0][0] * scale, tooth.outline[0][1] * scale);
-            for(let i = 1; i < tooth.outline.length; i++) {
-                ctx.lineTo(tooth.outline[i][0] * scale, tooth.outline[i][1] * scale);
+        // Draw the darker outline
+        ctx.strokeStyle = '#A9A9A9'; // Shades of grey
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (const path of teethOutlines) {
+            ctx.moveTo(landmarks[path[0]][0] * scale + offsetX, landmarks[path[0]][1] * scale + offsetY);
+            for(let i = 1; i < path.length; i++) {
+                ctx.lineTo(landmarks[path[i]][0] * scale + offsetX, landmarks[path[i]][1] * scale + offsetY);
             }
-            ctx.closePath();
-            ctx.stroke();
-        });
+        }
+        ctx.closePath();
+        ctx.stroke();
     }
 
     // --- UI and User Flow Logic ---
@@ -224,4 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
             analyzeBtn.classList.remove('cursor-not-allowed');
         }
     });
+
+    // Start loading the model as soon as the page loads
+    loadModel();
 });
