@@ -14,82 +14,124 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalTitle = document.getElementById('modal-title');
     const modalMessage = document.getElementById('modal-message');
     const modalCloseBtn = document.getElementById('modal-close-btn');
-
-    const lipAnalysisEl = document.getElementById('lip-analysis');
-    const teethColorAnalysisEl = document.getElementById('teeth-color-analysis');
-    const gapsAnalysisEl = document.getElementById('gaps-analysis');
-    const alignmentAnalysisEl = document.getElementById('alignment-analysis');
-    const overbiteCrossbiteAnalysisEl = document.getElementById('overbite-crossbite-analysis');
+    const resultsImage = document.getElementById('results-image');
+    const overlayCanvas = document.getElementById('overlay-canvas');
+    const resultsCanvas = document.getElementById('results-canvas');
 
     let uploadedFile = null;
 
-    // --- AI Analysis Logic (Simulated) ---
-    function analyzeSmile(imageData) {
+    // --- AI Analysis Logic (Simulated with TensorFlow.js) ---
+    async function analyzeSmile(image) {
         console.log("Starting smile analysis on image data...");
 
-        // In a real-world scenario, you would send this image data to a server-side
-        // model or use a client-side library like TensorFlow.js for analysis.
-        // This function simulates the results based on your specified logic.
+        // Load the FaceMesh model
+        // In a real app, you'd load this once and reuse it.
+        const model = await facemesh.load({ maxFaces: 1 });
 
-        const results = {
-            lip_identified: Math.random() > 0.1, // 90% chance of being identified
-            teeth_color_score: Math.floor(Math.random() * 60) + 40, // Score from 40-100
-            gaps_detected: Math.random() > 0.5, // 50% chance of gaps
-            alignment_score: Math.floor(Math.random() * 60) + 40, // Score from 40-100
-            overbite_detected: Math.random() > 0.7, // 30% chance of overbite
-            crossbite_detected: Math.random() > 0.7 // 30% chance of crossbite
+        // Pass the image to the model for facial landmark detection
+        const predictions = await model.estimateFaces(image);
+        
+        // This is a simulated prediction since we cannot access the model's true output
+        const hasLipLandmarks = predictions.length > 0;
+        const hasTeethLandmarks = hasLipLandmarks && Math.random() > 0.1;
+        const hasPerfectAlignment = hasTeethLandmarks && Math.random() > 0.4;
+        const hasGaps = hasTeethLandmarks && Math.random() > 0.5;
+        const hasOverbite = hasTeethLandmarks && Math.random() > 0.7;
+
+        // Calculate a simulated score
+        let score = 100;
+        if (!hasLipLandmarks) score -= 20;
+        if (!hasTeethLandmarks) score -= 30;
+        if (!hasPerfectAlignment) score -= 25;
+        if (hasGaps) score -= 20;
+        if (hasOverbite) score -= 15;
+
+        if (score < 10) score = 10;
+        if (score > 100) score = 100;
+        score = Math.round(score);
+
+        return {
+            score: score,
+            landmarks: hasTeethLandmarks ? predictions[0].scaledMesh : null
         };
+    }
 
-        // Calculate the final score based on the analysis
-        let finalScore = 100;
-        let analysisText = {
-            lips: "Lips could not be clearly identified as a canopy.",
-            teethColor: "The brightness of your teeth could not be determined.",
-            gaps: "No gaps were detected between your teeth. Great!",
-            alignment: "Teeth alignment is symmetric and well-aligned.",
-            overbiteCrossbite: "No overbite or crossbite issues were detected."
-        };
+    function drawAnalysisOverlay(canvas, image, landmarks) {
+        const ctx = canvas.getContext('2d');
+        const imgWidth = image.naturalWidth;
+        const imgHeight = image.naturalHeight;
+        const canvasWidth = canvas.clientWidth;
+        const canvasHeight = canvas.clientHeight;
 
-        if (results.lip_identified) {
-            finalScore -= 5; // A small deduction for not being perfect
-            analysisText.lips = "Lips were successfully identified as a canopy. Excellent!";
-        } else {
-            finalScore -= 20;
-        }
-
-        if (results.teeth_color_score < 70) {
-            finalScore -= (70 - results.teeth_color_score) * 0.5;
-            analysisText.teethColor = `Teeth brightness is moderate, with some darker shades of grey. A more brilliant white would improve your smile.`;
-        } else {
-             analysisText.teethColor = `Your teeth are a beautiful bright white with minimal darker outlines.`;
-        }
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
         
-        if (results.gaps_detected) {
-            finalScore -= 20;
-            analysisText.gaps = "Gaps were detected between your teeth. This can be improved with orthodontic treatment.";
-        }
+        const scaleX = canvasWidth / imgWidth;
+        const scaleY = canvasHeight / imgHeight;
+        const scale = Math.min(scaleX, scaleY);
         
-        if (results.alignment_score < 80) {
-            finalScore -= (80 - results.alignment_score) * 0.7;
-            analysisText.alignment = `Your teeth show signs of misalignment. Symmetry can be improved with a treatment plan.`;
-        }
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        if (results.overbite_detected && !results.crossbite_detected) {
-            finalScore -= 15;
-            analysisText.overbiteCrossbite = "An overbite was detected. The upper teeth outlines are longer than the lower ones.";
-        } else if (results.crossbite_detected && !results.overbite_detected) {
-            finalScore -= 15;
-            analysisText.overbiteCrossbite = "A crossbite was detected. The lower teeth outlines are longer than the upper ones.";
-        } else if (results.overbite_detected && results.crossbite_detected) {
-            finalScore -= 25;
-            analysisText.overbiteCrossbite = "Both overbite and crossbite signs were detected, indicating a complex alignment issue.";
+        if (!landmarks) return;
+
+        // Draw simulated lips as a pink canopy
+        ctx.strokeStyle = '#E91E63'; // Pink for lips
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        
+        // This is a placeholder for drawing the lip contour
+        // In a real implementation, you would use the specific landmarks for the lips
+        const lipPoints = [
+            landmarks[61], landmarks[146], landmarks[91], landmarks[181], landmarks[84], landmarks[17],
+            landmarks[314], landmarks[405], landmarks[321], landmarks[375]
+        ];
+        
+        ctx.moveTo(lipPoints[0][0] * scale, lipPoints[0][1] * scale);
+        for(let i = 1; i < lipPoints.length; i++) {
+            ctx.lineTo(lipPoints[i][0] * scale, lipPoints[i][1] * scale);
         }
+        ctx.closePath();
+        ctx.stroke();
 
-        // Ensure the score is within a valid range
-        if (finalScore < 0) finalScore = 0;
-        if (finalScore > 100) finalScore = 100;
+        // Draw simulated teeth
+        ctx.strokeStyle = '#FFFFFF'; // White for teeth outlines
+        ctx.fillStyle = '#f0f0f0'; // Lighter white for the inner part
+        ctx.lineWidth = 2;
 
-        return { score: Math.round(finalScore), summary: analysisText };
+        const teeth = [
+            // Simulating coordinates for the upper teeth
+            { outline: [[160, 240], [175, 240], [175, 260], [160, 260]], inner: [[162, 242], [173, 242], [173, 258], [162, 258]] },
+            { outline: [[180, 240], [195, 240], [195, 260], [180, 260]], inner: [[182, 242], [193, 242], [193, 258], [182, 258]] },
+            { outline: [[200, 240], [215, 240], [215, 260], [200, 260]], inner: [[202, 242], [213, 242], [213, 258], [202, 258]] },
+            { outline: [[220, 240], [235, 240], [235, 260], [220, 260]], inner: [[222, 242], [233, 242], [233, 258], [222, 258]] },
+            // Simulating coordinates for the lower teeth
+            { outline: [[170, 270], [185, 270], [185, 290], [170, 290]], inner: [[172, 272], [183, 272], [183, 288], [172, 288]] },
+            { outline: [[190, 270], [205, 270], [205, 290], [190, 290]], inner: [[192, 272], [203, 272], [203, 288], [192, 288]] },
+            { outline: [[210, 270], [225, 270], [225, 290], [210, 290]], inner: [[212, 272], [223, 272], [223, 288], [212, 288]] },
+        ];
+
+        teeth.forEach(tooth => {
+            // Draw the inner, brighter part
+            ctx.fillStyle = '#f0f0f0';
+            ctx.beginPath();
+            ctx.moveTo(tooth.inner[0][0] * scale, tooth.inner[0][1] * scale);
+            for(let i = 1; i < tooth.inner.length; i++) {
+                ctx.lineTo(tooth.inner[i][0] * scale, tooth.inner[i][1] * scale);
+            }
+            ctx.closePath();
+            ctx.fill();
+
+            // Draw the darker outline
+            ctx.strokeStyle = '#A9A9A9';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(tooth.outline[0][0] * scale, tooth.outline[0][1] * scale);
+            for(let i = 1; i < tooth.outline.length; i++) {
+                ctx.lineTo(tooth.outline[i][0] * scale, tooth.outline[i][1] * scale);
+            }
+            ctx.closePath();
+            ctx.stroke();
+        });
     }
 
     // --- UI and User Flow Logic ---
@@ -146,40 +188,33 @@ document.addEventListener('DOMContentLoaded', () => {
         analyzeBtn.classList.add('cursor-not-allowed');
 
         try {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const imageData = event.target.result;
-                const analysisResult = analyzeSmile(imageData);
+            const uploadedImg = document.getElementById('preview-img');
+            const analysisResult = await analyzeSmile(uploadedImg);
+            const { score, landmarks } = analysisResult;
 
-                const { score, summary } = analysisResult;
+            let discount = (100 - score);
+            if (discount < 10) {
+                discount = 10;
+            }
+            if (discount > 40) {
+                discount = 40;
+            }
 
-                let discount = (100 - score);
+            // Update UI with results
+            smileScoreDisplay.textContent = `${score}%`;
+            discountPercent.textContent = `${discount}%`;
+            whatsappLink.href = `https://wa.me/916005795693?text=Hi, I just finished the Impec Smile Challenge. Here is a screenshot of my results. My score is ${score}%.`;
+            
+            // Set the result image
+            resultsImage.src = URL.createObjectURL(uploadedFile);
 
-                // Cap the discount to be within the 10-40% range
-                if (discount < 10) {
-                    discount = 10;
-                }
-                if (discount > 40) {
-                    discount = 40;
-                }
-
-                // Update UI with results
-                smileScoreDisplay.textContent = `${score}%`;
-                discountPercent.textContent = `${discount}%`;
-                whatsappLink.href = `https://wa.me/916005795693?text=Hi, I just finished the Impec Smile Challenge. Here is a screenshot of my results. My score is ${score}%.`;
-
-                // Display detailed analysis summary
-                lipAnalysisEl.textContent = summary.lips;
-                teethColorAnalysisEl.textContent = summary.teethColor;
-                gapsAnalysisEl.textContent = summary.gaps;
-                alignmentAnalysisEl.textContent = summary.alignment;
-                overbiteCrossbiteAnalysisEl.textContent = summary.overbiteCrossbite;
-
-                uploadSection.classList.add('hidden');
-                resultsSection.classList.remove('hidden');
+            // Draw the overlay on the results canvas
+            resultsImage.onload = () => {
+                 drawAnalysisOverlay(resultsCanvas, resultsImage, landmarks);
             };
-            reader.readAsDataURL(uploadedFile);
 
+            uploadSection.classList.add('hidden');
+            resultsSection.classList.remove('hidden');
         } catch (error) {
             console.error("Analysis failed:", error);
             showModal("Analysis Error", "We encountered a technical issue. Please try again.");
