@@ -3,8 +3,8 @@
   "name": "smile-analyzer",
   "builds": [
     { "src": "index.html", "use": "@vercel/static" },
-    { "src": "style.css", "use": "@vercel/static" },
-    { "src": "script.js", "use": "@vercel/static" },
+    { "src": "style.css", "use": "@vercel/static-build" },
+    { "src": "script.js", "use": "@vercel/static-build" },
     { "src": "assets/**/*", "use": "@vercel/static" }
   ],
   "routes": [
