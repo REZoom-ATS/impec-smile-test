@@ -43,8 +43,9 @@
             <h2 class="text-xl font-semibold">Step 2: Upload Your Photo</h2>
             <p class="text-gray-600">Please provide a clear photo of your teeth for analysis.</p>
 
-            <div id="image-preview" class="w-full h-48 bg-gray-100 rounded-xl flex items-center justify-center p-4">
+            <div id="image-preview" class="relative w-full h-48 bg-gray-100 rounded-xl flex items-center justify-center p-4">
                 <span class="text-gray-400">Image preview will appear here</span>
+                <canvas id="overlay-canvas" class="absolute inset-0 w-full h-full"></canvas>
             </div>
 
             <div class="flex flex-col sm:flex-row sm:space-x-4 space-y-4 sm:space-y-0">
@@ -72,13 +73,9 @@
                 <div class="text-6xl font-extrabold text-pink-600" id="smile-score-display"></div>
             </div>
             
-            <div id="analysis-summary" class="bg-gray-100 p-4 rounded-xl text-left space-y-2 text-gray-700">
-                <h3 class="text-xl font-semibold mb-2">Analysis Breakdown:</h3>
-                <p id="lip-analysis"></p>
-                <p id="teeth-color-analysis"></p>
-                <p id="gaps-analysis"></p>
-                <p id="alignment-analysis"></p>
-                <p id="overbite-crossbite-analysis"></p>
+            <div id="results-image-container" class="relative w-full h-48 rounded-xl overflow-hidden shadow-md">
+                <img id="results-image" class="absolute inset-0 w-full h-full object-contain" />
+                <canvas id="results-canvas" class="absolute inset-0 w-full h-full"></canvas>
             </div>
 
             <div class="flex items-center justify-between p-4 bg-yellow-100 rounded-xl shadow-inner">
@@ -110,6 +107,8 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/facemesh"></script>
     <script src="script.js"></script>
 </body>
 
