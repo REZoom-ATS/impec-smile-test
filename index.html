@@ -80,9 +80,9 @@ const discountDisplay = document.getElementById('discount-percent');
 const downloadBtn = document.getElementById('download-result-btn');
 const ctx = resultsCanvas.getContext('2d');
 
-const resultCache = {}; // cache by image hash
-const faceMesh = new FaceMesh({ locateFile: (file) => 
-  `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}` 
+const resultCache = {};
+const faceMesh = new FaceMesh({ locateFile: (file) =>
+  `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
 });
 faceMesh.setOptions({
   maxNumFaces: 1,
@@ -115,8 +115,11 @@ uploadBtn.addEventListener('change', async (e) => {
     const landmarks = results.multiFaceLandmarks[0];
     const teethMask = detectTeethMask(img, landmarks);
     drawOverlay(teethMask);
-    const smileScore = computeSmileScore(teethMask);
+
+    const { symmetry, gaps } = computeTeethGeometry(teethMask, landmarks);
+    const smileScore = computeSmileScore(teethMask, symmetry, gaps);
     const discount = getDiscount(smileScore);
+
     const result = { img, smileScore, discount, teethMask };
     resultCache[hash] = result;
     displayResult(result);
@@ -155,8 +158,7 @@ async function hashImage(file) {
   const buffer = await file.arrayBuffer();
   const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
   return Array.from(new Uint8Array(hashBuffer))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
+    .map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 function loadImage(src) {
@@ -167,7 +169,7 @@ function loadImage(src) {
   });
 }
 
-// 🔥 Enhanced Teeth Detection with Lip Masking
+// 1️⃣ Teeth detection with lip mask
 function detectTeethMask(img, landmarks) {
   const offCanvas = document.createElement('canvas');
   offCanvas.width = img.width;
@@ -177,60 +179,80 @@ function detectTeethMask(img, landmarks) {
   const imageData = offCtx.getImageData(0, 0, img.width, img.height);
   const mask = new Uint8ClampedArray(imageData.width * imageData.height);
 
-  // Create lip polygon
-  const lipIndices = [...Array(28).keys()].map(i => i + 61); // mediapipe lips 61–88
+  const lipIndices = [...Array(28).keys()].map(i => i + 61);
   const path = new Path2D();
   path.moveTo(landmarks[lipIndices[0]].x * img.width, landmarks[lipIndices[0]].y * img.height);
-  lipIndices.forEach(idx => {
-    const pt = landmarks[idx];
-    path.lineTo(pt.x * img.width, pt.y * img.height);
-  });
+  lipIndices.forEach(idx => path.lineTo(landmarks[idx].x * img.width, landmarks[idx].y * img.height));
   path.closePath();
 
-  // Iterate pixels, include only those inside lips polygon
   const tmpCtx = document.createElement('canvas').getContext('2d');
   tmpCtx.canvas.width = img.width;
   tmpCtx.canvas.height = img.height;
   tmpCtx.fillStyle = "#000";
   tmpCtx.fill(path);
-
   const lipMask = tmpCtx.getImageData(0, 0, img.width, img.height).data;
+
   for (let i = 0; i < imageData.data.length; i += 4) {
-    const insideLip = lipMask[i + 3] > 0; // alpha channel from fill
+    const insideLip = lipMask[i + 3] > 0;
     if (!insideLip) continue;
-    const r = imageData.data[i];
-    const g = imageData.data[i + 1];
-    const b = imageData.data[i + 2];
+    const r = imageData.data[i], g = imageData.data[i+1], b = imageData.data[i+2];
     const brightness = (r + g + b) / 3;
-    mask[i / 4] = brightness > 180 ? 255 : 0;
+    mask[i/4] = brightness > 180 ? 255 : 0;
   }
   return { mask, width: img.width, height: img.height };
+}
+
+// 2️⃣ Compute symmetry & gaps
+function computeTeethGeometry(teethMask, landmarks) {
+  const midX = landmarks[1].x * teethMask.width; // nose tip x
+  let leftPixels = 0, rightPixels = 0;
+  let gapCount = 0, transitions = 0;
+
+  for (let y = 0; y < teethMask.height; y++) {
+    let rowHasTeeth = false;
+    for (let x = 0; x < teethMask.width; x++) {
+      const idx = y * teethMask.width + x;
+      if (teethMask.mask[idx] === 255) {
+        rowHasTeeth = true;
+        if (x < midX) leftPixels++;
+        else rightPixels++;
+      }
+    }
+    if (rowHasTeeth) transitions++;
+  }
+
+  const symmetry = 1 - Math.abs(leftPixels - rightPixels) / Math.max(leftPixels + rightPixels, 1);
+  const gaps = transitions > 0 ? (transitions / 50) : 1; // crude gap estimate
+
+  return { symmetry, gaps };
+}
+
+// 3️⃣ Score formula
+function computeSmileScore(teethMask, symmetry, gaps) {
+  const visibleTeeth = teethMask.mask.reduce((a,v)=>a+(v===255?1:0),0);
+  const coverage = visibleTeeth / teethMask.mask.length;
+  let baseScore = Math.min(1, coverage * 3);
+  const w1=0.5, w2=0.3, w3=0.2;
+  const score = 100*(w1*symmetry + w2*baseScore + w3*(1-gaps));
+  return Math.round(Math.max(0, Math.min(score, 100)));
+}
+
+function getDiscount(smileScore) {
+  const Dmin=10, Dmax=30;
+  return +(Dmax - (smileScore/100)*(Dmax-Dmin)).toFixed(2);
 }
 
 function drawOverlay(teethMask) {
   const imageData = ctx.createImageData(teethMask.width, teethMask.height);
   for (let i = 0; i < teethMask.mask.length; i++) {
     if (teethMask.mask[i] === 255) {
-      imageData.data[i * 4] = 255;
-      imageData.data[i * 4 + 1] = 255;
-      imageData.data[i * 4 + 2] = 255;
-      imageData.data[i * 4 + 3] = 120;
+      imageData.data[i*4]=255;
+      imageData.data[i*4+1]=255;
+      imageData.data[i*4+2]=255;
+      imageData.data[i*4+3]=120;
     }
   }
   ctx.putImageData(imageData, 0, 0);
-}
-
-function computeSmileScore(teethMask) {
-  const visibleTeeth = teethMask.mask.reduce((a, v) => a + (v === 255 ? 1 : 0), 0);
-  const coverage = visibleTeeth / teethMask.mask.length;
-  let score = Math.min(100, Math.max(0, coverage * 300));
-  return Math.round(score);
-}
-
-function getDiscount(smileScore) {
-  const Dmin = 10;
-  const Dmax = 30;
-  return +(Dmax - (smileScore / 100) * (Dmax - Dmin)).toFixed(2);
 }
 
 function displayResult({ smileScore, discount }) {
