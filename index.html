@@ -1,81 +1,41 @@
-<!-- save-as: impec-smile-challenge.html -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Impec: Smile Challenge Check</title>
+  <title>Impec: Smile Challenge</title>
   <script src="https://cdn.tailwindcss.com"></script>
-
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
     body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; color: #1f2937; }
     .gradient-bg { background-image: linear-gradient(to bottom right, #f8bbd0, #e91e63); }
-    .logo-svg { width: 80px; height: 80px; }
-    /* Ensure canvases scale visually but maintain internal resolution set in JS */
     canvas { width: 100%; height: 100%; display: block; }
   </style>
 
-  <!-- TFJS + FaceMesh (the classic facemesh model) -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/facemesh@0.0.4/dist/facemesh.min.js"></script>
+  <!-- MediaPipe FaceMesh -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-4">
 
-  <!-- Main Container (kept your theme) -->
+  <!-- Main Container -->
   <div class="bg-white rounded-3xl shadow-xl w-full max-w-md p-6 sm:p-8 space-y-6 text-center">
-     <img src="assets/mid-logo.png" alt="Impec Logo" class="w-24 h-24 rounded-full shadow">
 
+    <!-- Header -->
     <div class="flex flex-col items-center space-y-4">
-      <img src="https://placehold.co/96x96/f8bbd0/e91e63?text=Logo" alt="Impec Logo" class="w-24 h-24 rounded-full">
+      <img src="assets/mid-logo.png" alt="Impec Logo" class="w-24 h-24 rounded-full shadow">
       <h1 class="text-3xl sm:text-4xl font-bold">Impec: Smile Challenge</h1>
-      <p class="text-gray-500 text-sm sm:text-base">Check your smile score and get a coupon for a discount on clear aligners.</p>
+      <p class="text-gray-500 text-sm sm:text-base">Upload a photo, check your smile score, and unlock a discount on aligners.</p>
     </div>
 
-    <!-- Step 1: Form -->
-    <div id="form-section" class="space-y-4">
-      <h2 class="text-xl font-semibold">Step 1: Fill out the form</h2>
-      <p class="text-gray-600">Please complete this short form before proceeding to the smile analysis.</p>
-      <a id="open-form-btn" href="https://docs.google.com/forms/d/e/1FAIpQLSc4Oh4wdPnIEcQASkgmC8735KRZLxsjjH_XLHSX3W05tM9ocA/viewform?usp=header"
-         target="_blank"
-         class="inline-block w-full bg-[#e91e63] text-white font-semibold py-3 px-6 rounded-full shadow-lg hover:bg-[#c2185b] transition-colors duration-300">
-        Open Google Form
-      </a>
-      <button id="form-complete-btn"
-         class="w-full bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-full shadow-md mt-2 hover:bg-gray-300 transition-colors duration-300">
-        I've completed the form
-      </button>
+    <!-- Upload Section -->
+    <div class="space-y-4">
+      <input type="file" id="upload-btn" accept="image/*"
+             class="w-full border border-gray-300 rounded-lg px-4 py-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-400">
+      <div class="text-gray-400 text-sm">Tip: Use a well-lit photo with your full smile visible.</div>
     </div>
 
-    <!-- Step 2: Upload -->
-    <div id="upload-section" class="space-y-4 hidden">
-      <h2 class="text-xl font-semibold">Step 2: Upload Your Photo</h2>
-      <p class="text-gray-600">Please provide a clear photo of your teeth for analysis. Make sure lips are slightly parted, front-facing.</p>
-
-      <div id="image-preview" class="relative w-full h-48 bg-gray-100 rounded-xl flex items-center justify-center p-4 overflow-hidden">
-        <span id="preview-placeholder" class="text-gray-400">Image preview will appear here</span>
-        <canvas id="overlay-canvas" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
-      </div>
-
-      <div class="flex flex-col sm:flex-row sm:space-x-4 space-y-4 sm:space-y-0">
-        <input type="file" id="image-upload" accept="image/*" class="hidden" />
-        <button id="upload-btn"
-          class="w-full bg-[#f8bbd0] text-[#e91e63] font-semibold py-3 px-6 rounded-full shadow-lg hover:bg-[#f48fb1] transition-colors duration-300">
-          Upload Photo
-        </button>
-        <button id="camera-btn"
-          class="w-full bg-[#e91e63] text-white font-semibold py-3 px-6 rounded-full shadow-lg hover:bg-[#c2185b] transition-colors duration-300">
-          Take Photo
-        </button>
-      </div>
-
-      <button id="analyze-btn" disabled
-              class="w-full bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-full shadow-md mt-2">
-        Analyze My Smile
-      </button>
-    </div>
-
-    <!-- Results -->
+    <!-- Results Section -->
     <div id="results-section" class="space-y-6 hidden">
       <div class="flex flex-col items-center space-y-2">
         <span class="text-green-500 font-bold text-lg">Analysis Complete!</span>
@@ -83,7 +43,7 @@
         <div class="text-6xl font-extrabold text-pink-600" id="smile-score-display">--%</div>
       </div>
 
-      <div id="results-image-container" class="relative w-full h-48 rounded-xl overflow-hidden shadow-md">
+      <div id="results-image-container" class="relative w-full h-48 rounded-xl overflow-hidden shadow-md bg-gray-100">
         <img id="results-image" class="absolute inset-0 w-full h-full object-contain" />
         <canvas id="results-canvas" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
       </div>
@@ -93,615 +53,191 @@
         <span id="discount-percent" class="text-3xl font-extrabold text-[#e91e63]">0%</span>
       </div>
 
+      <!-- Download Button -->
+      <button id="download-result-btn"
+              class="w-full bg-green-500 text-white font-bold py-3 px-6 rounded-full shadow-lg hover:bg-green-600 transition-colors duration-300">
+        Download Result
+      </button>
+
       <p class="text-center text-gray-600 font-medium">
-        To get a detailed review of your smile and find the perfect correction procedure, please click below to
-        chat with our expert and attach a screenshot of this page.
+        To get a detailed review of your smile and find the perfect correction procedure, click below and share your result with our expert.
       </p>
 
       <a id="whatsapp-link" href="#" target="_blank"
          class="inline-block w-full gradient-bg text-white font-bold py-3 px-6 rounded-full shadow-lg transition-colors duration-300 text-center">
-        Need Review with Expert
+        Chat with Expert
       </a>
     </div>
   </div>
 
-  <!-- Modal -->
-  <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
-    <div class="bg-white rounded-xl p-6 w-full max-w-sm text-center shadow-2xl space-y-4">
-      <h3 id="modal-title" class="text-xl font-bold"></h3>
-      <p id="modal-message" class="text-gray-600"></p>
-      <button id="modal-close-btn"
-              class="w-full bg-[#e91e63] text-white font-semibold py-2 px-4 rounded-full shadow-lg hover:bg-[#c2185b] transition-colors duration-300">
-        OK
-      </button>
-    </div>
-  </div>
-
 <script>
-/*
-  Key design choices:
-   - Deterministic: no random changes; fixed resizing, fixed rounding precision.
-   - Caching: image SHA-256 -> cached results in localStorage for identical uploads.
-   - Teeth segmentation: HSV-based threshold inside lip polygon (fast + deterministic).
-   - Scoring: weighted combination of coverage, symmetry, spacing, alignment.
-   - Discount: inverse-linear mapping from score: 100 -> 10%, 0 -> 30%.
-*/
+const uploadBtn = document.getElementById('upload-btn');
+const resultsSection = document.getElementById('results-section');
+const resultsImage = document.getElementById('results-image');
+const resultsCanvas = document.getElementById('results-canvas');
+const smileScoreDisplay = document.getElementById('smile-score-display');
+const discountDisplay = document.getElementById('discount-percent');
+const downloadBtn = document.getElementById('download-result-btn');
+const ctx = resultsCanvas.getContext('2d');
 
-/* ====== Utility functions ====== */
-
-function showModal(title, message) {
-  document.getElementById('modal-title').textContent = title;
-  document.getElementById('modal-message').textContent = message;
-  document.getElementById('modal').classList.remove('hidden');
-}
-document.getElementById('modal-close-btn').addEventListener('click', () => {
-  document.getElementById('modal').classList.add('hidden');
+const resultCache = {}; // cache by image hash
+const faceMesh = new FaceMesh({ locateFile: (file) => 
+  `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}` 
+});
+faceMesh.setOptions({
+  maxNumFaces: 1,
+  refineLandmarks: true,
+  minDetectionConfidence: 0.7,
+  minTrackingConfidence: 0.7
 });
 
-/* deterministic rounding helper */
-function round(x, decimals=3) {
-  const p = Math.pow(10, decimals);
-  return Math.round(x * p) / p;
-}
+uploadBtn.addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
 
-/* compute SHA-256 hex string of ArrayBuffer */
-async function sha256Hex(buffer) {
-  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2,'0')).join('');
-}
-
-/* draw polygons */
-function drawPolygon(ctx, pts, scale, offsetX, offsetY, options={}) {
-  if (!pts || pts.length === 0) return;
-  ctx.beginPath();
-  ctx.moveTo(pts[0][0]*scale + offsetX, pts[0][1]*scale + offsetY);
-  for (let i = 1; i < pts.length; i++) {
-    ctx.lineTo(pts[i][0]*scale + offsetX, pts[i][1]*scale + offsetY);
+  const hash = await hashImage(file);
+  if (resultCache[hash]) {
+    displayResult(resultCache[hash]);
+    return;
   }
-  if (options.close) ctx.closePath();
-  if (options.fill) { ctx.fillStyle = options.fill; ctx.fill(); }
-  if (options.stroke) { ctx.strokeStyle = options.stroke; ctx.lineWidth = options.lineWidth || 2; ctx.stroke(); }
-}
 
-/* Check point inside polygon (ray casting) */
-function pointInPolygon(x, y, polygon) {
-  let inside = false;
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const xi = polygon[i][0], yi = polygon[i][1];
-    const xj = polygon[j][0], yj = polygon[j][1];
-    const intersect = ((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi + 1e-12) + xi);
-    if (intersect) inside = !inside;
-  }
-  return inside;
-}
+  const img = await loadImage(URL.createObjectURL(file));
+  resultsImage.src = img.src;
+  resultsCanvas.width = img.width;
+  resultsCanvas.height = img.height;
+  ctx.clearRect(0, 0, resultsCanvas.width, resultsCanvas.height);
 
-/* Connected components (4-neighbor) on a binary mask */
-function connectedComponents(mask, w, h, minSize=10) {
-  const labels = new Int32Array(w*h).fill(0);
-  let label = 0;
-  const comps = [];
-  for (let y=0;y<h;y++) {
-    for (let x=0;x<w;x++) {
-      const idx = y*w + x;
-      if (mask[idx] === 1 && labels[idx] === 0) {
-        label++;
-        const q = [idx];
-        labels[idx] = label;
-        let ptr = 0;
-        while (ptr < q.length) {
-          const cur = q[ptr++]; 
-          const cx = cur % w, cy = Math.floor(cur / w);
-          const nbs = [
-            [cx-1,cy],[cx+1,cy],[cx,cy-1],[cx,cy+1]
-          ];
-          for (const [nx,ny] of nbs) {
-            if (nx>=0 && nx<w && ny>=0 && ny<h) {
-              const nidx = ny*w + nx;
-              if (mask[nidx] === 1 && labels[nidx] === 0) {
-                labels[nidx] = label;
-                q.push(nidx);
-              }
-            }
-          }
-        }
-        // collect pixels of this label
-        const pixels = [];
-        for (const i of q) pixels.push(i);
-        if (pixels.length >= minSize) {
-          // compute bbox + centroid
-          let minx=w, miny=h, maxx=0, maxy=0, sumx=0, sumy=0;
-          for (const p of pixels) {
-            const px = p % w, py = Math.floor(p / w);
-            if (px < minx) minx = px;
-            if (py < miny) miny = py;
-            if (px > maxx) maxx = px;
-            if (py > maxy) maxy = py;
-            sumx += px; sumy += py;
-          }
-          comps.push({
-            label, size: pixels.length,
-            bbox: [minx,miny,maxx,maxy],
-            centroid: [sumx / pixels.length, sumy / pixels.length],
-            pixels
-          });
-        }
-      }
+  faceMesh.onResults((results) => {
+    if (!results.multiFaceLandmarks.length) {
+      alert("No face detected. Please try again with a clear photo.");
+      return;
     }
-  }
-  return comps;
-}
+    const landmarks = results.multiFaceLandmarks[0];
+    const teethMask = detectTeethMask(img, landmarks);
+    drawOverlay(teethMask);
+    const smileScore = computeSmileScore(teethMask);
+    const discount = getDiscount(smileScore);
+    const result = { img, smileScore, discount, teethMask };
+    resultCache[hash] = result;
+    displayResult(result);
+  });
 
-/* ====== Main detection & scoring pipeline ====== */
+  await faceMesh.send({ image: img });
+});
 
-const MODEL_LOAD_MAX_FACES = 1;
-let facemeshModel = null;
+downloadBtn.addEventListener('click', () => {
+  const downloadCanvas = document.createElement('canvas');
+  downloadCanvas.width = resultsCanvas.width;
+  downloadCanvas.height = resultsCanvas.height + 120;
+  const dctx = downloadCanvas.getContext('2d');
 
-/* load model once */
-async function loadFaceMesh() {
-  if (!facemeshModel) {
-    console.log('Loading FaceMesh model...');
-    facemeshModel = await facemesh.load({ maxFaces: MODEL_LOAD_MAX_FACES });
-    console.log('FaceMesh loaded.');
-  }
-}
+  dctx.drawImage(resultsImage, 0, 0, resultsCanvas.width, resultsCanvas.height);
+  dctx.drawImage(resultsCanvas, 0, 0);
 
-/* Deterministic preprocessing:
-   - create a canonical image sized to CANON_W x CANON_H using 'bilinear' drawImage
-   - returns ImageData of canonical image
-*/
-const CANON_W = 512;
-const CANON_H = 512;
-function canonicalizeImage(img) {
-  // draw on offscreen canvas at fixed size
-  const off = document.createElement('canvas');
-  off.width = CANON_W; off.height = CANON_H;
-  const ctx = off.getContext('2d');
-  // clear & draw with default interpolation (deterministic across browsers)
-  ctx.clearRect(0,0,CANON_W,CANON_H);
-  // compute fit-to-box preserving aspect ratio (contain)
-  const arImg = img.naturalWidth / img.naturalHeight;
-  const arBox = CANON_W / CANON_H;
-  let dw, dh, dx, dy;
-  if (arImg > arBox) {
-    // image wider
-    dw = CANON_W; dh = Math.round(CANON_W / arImg);
-    dx = 0; dy = Math.round((CANON_H - dh)/2);
-  } else {
-    dh = CANON_H; dw = Math.round(CANON_H * arImg);
-    dy = 0; dx = Math.round((CANON_W - dw)/2);
-  }
-  ctx.fillStyle = '#fff'; ctx.fillRect(0,0,CANON_W,CANON_H);
-  ctx.drawImage(img, 0,0, img.naturalWidth, img.naturalHeight, dx, dy, dw, dh);
-  return ctx.getImageData(0,0,CANON_W,CANON_H);
-}
+  const logo = new Image();
+  logo.src = "assets/mid-logo.png";
+  logo.onload = () => {
+    dctx.drawImage(logo, 20, resultsCanvas.height + 10, 80, 80);
+    dctx.fillStyle = "#111";
+    dctx.font = "bold 32px Inter";
+    dctx.fillText(`Smile Score: ${smileScoreDisplay.textContent}`, 120, resultsCanvas.height + 50);
+    dctx.fillStyle = "#e91e63";
+    dctx.fillText(`Discount: ${discountDisplay.textContent}`, 120, resultsCanvas.height + 100);
 
-/* Convert (r,g,b) to HSV, returns [h(0..360), s(0..1), v(0..1)] */
-function rgbToHsv(r,g,b) {
-  r /= 255; g /= 255; b /= 255;
-  const max = Math.max(r,g,b), min = Math.min(r,g,b);
-  const d = max - min;
-  let h = 0;
-  if (d !== 0) {
-    if (max === r) h = 60 * (((g - b) / d) % 6);
-    else if (max === g) h = 60 * (((b - r) / d) + 2);
-    else h = 60 * (((r - g) / d) + 4);
-  }
-  if (h < 0) h += 360;
-  const s = max === 0 ? 0 : d / max;
-  const v = max;
-  return [h, s, v];
-}
-
-/* Teeth segmentation inside lip polygon:
-   - threshold on (V high) & (S low) in HSV space
-   - returns binary mask (Uint8Array) sized width*height
-   - deterministic thresholds can be tuned
-*/
-function segmentTeeth(imageData, lipPolygonCanvasCoords) {
-  const w = imageData.width, h = imageData.height;
-  const data = imageData.data;
-  const mask = new Uint8Array(w*h).fill(0);
-
-  // thresholds (tweak these if needed)
-  const V_MIN = 0.65;  // bright pixels
-  const S_MAX = 0.35;  // low saturation (white-ish)
-  const Y_OVERLAP_MIN = 120; // optional brightness fallback (0..255)
-
-  // iterate only inside bounding box of lip polygon for speed
-  let minx = w, miny = h, maxx = 0, maxy = 0;
-  for (const pt of lipPolygonCanvasCoords) {
-    if (pt[0] < minx) minx = pt[0];
-    if (pt[0] > maxx) maxx = pt[0];
-    if (pt[1] < miny) miny = pt[1];
-    if (pt[1] > maxy) maxy = pt[1];
-  }
-  minx = Math.max(0, Math.floor(minx)); maxx = Math.min(w-1, Math.ceil(maxx));
-  miny = Math.max(0, Math.floor(miny)); maxy = Math.min(h-1, Math.ceil(maxy));
-
-  for (let y = miny; y <= maxy; y++) {
-    for (let x = minx; x <= maxx; x++) {
-      const idx = y * w + x;
-      if (!pointInPolygon(x + 0.5, y + 0.5, lipPolygonCanvasCoords)) continue;
-      const di = idx * 4;
-      const r = data[di], g = data[di+1], b = data[di+2];
-      const [hue, sat, val] = rgbToHsv(r,g,b);
-      if ((val >= V_MIN && sat <= S_MAX) || (r+g+b)/3 >= Y_OVERLAP_MIN) {
-        mask[idx] = 1;
-      }
-    }
-  }
-  return { mask, w, h };
-}
-
-/* Postprocess mask: connected components, remove tiny specks, fill small holes */
-function cleanMask(binaryMask, w, h) {
-  // remove small components and return cleaned mask + components
-  const comps = connectedComponents(binaryMask, w, h, 6); // drop <6 px
-  const cleaned = new Uint8Array(w*h).fill(0);
-  for (const comp of comps) {
-    // ignore comps that fall outside reasonable aspect ratio or size
-    const [minx,miny,maxx,maxy] = comp.bbox;
-    const width = maxx - minx + 1;
-    const height = maxy - miny + 1;
-    const area = comp.size;
-    // keep plausible tooth shapes (some heuristics)
-    if (area >= 20 && area <= (w*h*0.5)) {
-      for (const p of comp.pixels) cleaned[p] = 1;
-    }
-  }
-  const kept = connectedComponents(cleaned, w, h, 6);
-  return { cleanedMask: cleaned, components: kept };
-}
-
-/* Score computation:
-   - coverageScore: how much of the lip region is filled with teeth-like pixels (0..1)
-   - symmetryScore: compare left/right centroids of detected teeth components around midline (0..1)
-   - spacingScore: penalty for large gaps between adjacent tooth bboxes (0..1)
-   - alignmentScore: how well top edges align (0..1)
-   Weighted combination -> [0..100]
-*/
-function computeSmileScore(lipPoly, comps, lipAreaPx, w, h) {
-  // coverage
-  let teethPixelCount = 0;
-  for (const c of comps) teethPixelCount += c.size;
-  const coverage = lipAreaPx > 0 ? (teethPixelCount / lipAreaPx) : 0;
-  const coverageScore = Math.min(1, coverage / 0.25); // expect up to 25% lip area covered by teeth
-
-  // symmetry: split by vertical midline of lip polygon
-  // compute lip midline x as average of polygon x
-  let midX = 0;
-  for (const p of lipPoly) midX += p[0];
-  midX /= lipPoly.length;
-
-  const leftComps = comps.filter(c => c.centroid[0] < midX);
-  const rightComps = comps.filter(c => c.centroid[0] >= midX);
-  // compute centroid of each side
-  const centroidSide = (arr) => {
-    if (arr.length === 0) return null;
-    let sx=0, sy=0, s=0;
-    for (const c of arr) { sx += c.centroid[0]*c.size; sy += c.centroid[1]*c.size; s += c.size; }
-    return [sx/s, sy/s];
+    const a = document.createElement('a');
+    a.href = downloadCanvas.toDataURL("image/png");
+    a.download = `smile-result-${Date.now()}.png`;
+    a.click();
   };
-  const lc = centroidSide(leftComps), rc = centroidSide(rightComps);
-  let symmetryScore = 0;
-  if (lc && rc) {
-    // mirror left across midline and compute normalized distance
-    const dist = Math.hypot((midX - (lc[0])) - (rc[0] - midX), lc[1] - rc[1]);
-    // Normalize: max meaningful dist ~ lip width / 2
-    let lipWidth = 0;
-    for (const p of lipPoly) lipWidth = Math.max(lipWidth, Math.abs(p[0] - midX));
-    lipWidth = Math.max(1, lipWidth);
-    symmetryScore = 1 - Math.min(1, dist / (lipWidth));
-  } else {
-    // incomplete detection penalized
-    symmetryScore = 0.4 * ( (lc || rc) ? 1 : 0 );
-  }
+});
 
-  // spacing: if there are many separate components with large gaps -> penalty
-  let spacingScore = 1;
-  if (comps.length >= 2) {
-    // sort by centroid x
-    const sorted = comps.slice().sort((a,b)=>a.centroid[0]-b.centroid[0]);
-    let totalGap = 0;
-    let gapsCount = 0;
-    for (let i=0;i<sorted.length-1;i++){
-      const rightEdge = sorted[i].bbox[2];
-      const leftEdgeNext = sorted[i+1].bbox[0];
-      const rawGap = leftEdgeNext - rightEdge;
-      if (rawGap > 0) { totalGap += rawGap; gapsCount++; }
-    }
-    if (gapsCount>0) {
-      const avgGap = totalGap / gapsCount;
-      // Normalize against lip width
-      let lipBounding = [9999,9999,0,0];
-      for (const p of lipPoly) {
-        lipBounding[0] = Math.min(lipBounding[0], p[0]);
-        lipBounding[1] = Math.min(lipBounding[1], p[1]);
-        lipBounding[2] = Math.max(lipBounding[2], p[0]);
-        lipBounding[3] = Math.max(lipBounding[3], p[1]);
-      }
-      const lipW = Math.max(1, lipBounding[2] - lipBounding[0]);
-      spacingScore = 1 - Math.min(0.9, avgGap / lipW); // big gaps reduce score
-    }
-  }
-
-  // alignment: compute top-edge variance (incisal edge). We use min y of bounding boxes
-  let alignmentScore = 1;
-  if (comps.length >= 2) {
-    const topYs = comps.map(c => c.bbox[1]);
-    const avgTop = topYs.reduce((a,b)=>a+b,0)/topYs.length;
-    let variance = topYs.reduce((s,v)=> s + Math.abs(v - avgTop), 0) / topYs.length;
-    // Normalize by lip height
-    let lipHeight = 0;
-    for (const p of lipPoly) lipHeight = Math.max(lipHeight, Math.abs(p[1] - avgTop));
-    lipHeight = Math.max(1, lipHeight);
-    alignmentScore = 1 - Math.min(0.9, variance / lipHeight);
-  }
-
-  // weights (tweakable)
-  const wCoverage = 0.30;
-  const wSymmetry = 0.35;
-  const wSpacing = 0.20;
-  const wAlignment = 0.15;
-
-  // combine
-  const combined = wCoverage*coverageScore + wSymmetry*symmetryScore + wSpacing*spacingScore + wAlignment*alignmentScore;
-  let finalScore = Math.round(Math.max(0, Math.min(1, combined)) * 100);
-
-  // ensure deterministic clamp/min
-  if (!Number.isFinite(finalScore)) finalScore = 0;
-  if (finalScore < 0) finalScore = 0;
-  if (finalScore > 100) finalScore = 100;
-
-  return {
-    finalScore,
-    breakdown: {
-      coverageScore: round(coverageScore,3),
-      symmetryScore: round(symmetryScore,3),
-      spacingScore: round(spacingScore,3),
-      alignmentScore: round(alignmentScore,3)
-    }
-  };
-}
-
-/* Map smile score -> discount (inverse linear) between 10% (score 100) and 30% (score 0) */
-function scoreToDiscount(score) {
-  const Dmin = 10, Dmax = 30;
-  const discount = Dmax - (score / 100) * (Dmax - Dmin);
-  return Math.round(discount); // integer percent
-}
-
-/* Main high-level analyze function (deterministic) */
-async function analyzeImageFile(file) {
-  // 1) hash file -> check cache
+async function hashImage(file) {
   const buffer = await file.arrayBuffer();
-  const key = await sha256Hex(buffer);
-  const cacheKey = 'impec_result_'+key;
-  const cached = localStorage.getItem(cacheKey);
-  if (cached) {
-    // return cached parsed JSON
-    try { return JSON.parse(cached); }
-    catch(e){}
-  }
-
-  // Create img element
-  const img = new Image();
-  const url = URL.createObjectURL(new Blob([buffer]));
-  await new Promise((res,rej)=> { img.onload = res; img.onerror = rej; img.src = url; });
-
-  // 2) canonicalize image
-  const imageData = canonicalizeImage(img);
-
-  // 3) run FaceMesh on a temporary canvas element (FaceMesh expects image/video/canvas element)
-  const tempCanvas = document.createElement('canvas');
-  tempCanvas.width = CANON_W; tempCanvas.height = CANON_H;
-  const tempCtx = tempCanvas.getContext('2d');
-  tempCtx.putImageData(imageData, 0,0);
-  // Use facemeshModel
-  const predictions = await facemeshModel.estimateFaces(tempCanvas);
-  if (!predictions || predictions.length === 0) {
-    const out = { score: 0, discount: 30, reason: 'no_face_detected' };
-    localStorage.setItem(cacheKey, JSON.stringify(out));
-    return out;
-  }
-
-  const face = predictions[0];
-  const landmarks = face.scaledMesh; // array of [x,y,z] in canonical canvas coordinates
-
-  // Build lip polygon using MediaPipe standard indices for outer lip (same indices as your base).
-  // Those indices are trained for the original image size; here we used canonical canvas so scaledMesh is okay.
-  const outerLipsIdx = [61,146,91,181,84,17,314,405,321,375]; // same as your skeleton
-  const outerLipPoly = outerLipsIdx.map(i => [ landmarks[i][0], landmarks[i][1] ]);
-
-  // compute lip pixel area (approx by rasterizing polygon bounding box & pointInPolygon)
-  // Reuse the canonical imageData
-  let lipArea = 0;
-  // for speed compute bounding box of polygon
-  let minx = CANON_W, miny = CANON_H, maxx = 0, maxy = 0;
-  for (const p of outerLipPoly) {
-    if (p[0]<minx) minx=p[0]; if (p[0]>maxx) maxx=p[0];
-    if (p[1]<miny) miny=p[1]; if (p[1]>maxy) maxy=p[1];
-  }
-  minx = Math.max(0, Math.floor(minx)); maxx = Math.min(CANON_W-1, Math.ceil(maxx));
-  miny = Math.max(0, Math.floor(miny)); maxy = Math.min(CANON_H-1, Math.ceil(maxy));
-  for (let y=miny;y<=maxy;y++){
-    for (let x=minx;x<=maxx;x++){
-      if (pointInPolygon(x+0.5,y+0.5, outerLipPoly)) lipArea++;
-    }
-  }
-
-  // 4) segment teeth deterministically inside lip polygon
-  const seg = segmentTeeth(imageData, outerLipPoly);
-  const post = cleanMask(seg.mask, seg.w, seg.h);
-
-  // 5) compute final score
-  const scoring = computeSmileScore(outerLipPoly, post.components, lipArea, seg.w, seg.h);
-  const finalScore = scoring.finalScore;
-  const discount = scoreToDiscount(finalScore);
-
-  // prepare overlay data to draw later (normalized coordinates & mask)
-  const out = {
-    score: finalScore,
-    discount,
-    breakdown: scoring.breakdown,
-    lipPolygon: outerLipPoly,
-    components: post.components.map(c => ({
-      bbox: c.bbox,
-      centroid: c.centroid,
-      size: c.size
-    })),
-    reason: 'ok'
-  };
-
-  localStorage.setItem(cacheKey, JSON.stringify(out));
-  return out;
+  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
-/* ====== Canvas drawing helpers for UI overlays ====== */
-
-function drawPreviewOverlay(canvas, imageElement, result) {
-  const ctx = canvas.getContext('2d');
-  // determine display scale so canvas maps to image displayed in preview box
-  const imgW = imageElement.naturalWidth, imgH = imageElement.naturalHeight;
-  const dispW = canvas.clientWidth, dispH = canvas.clientHeight;
-  canvas.width = canvas.clientWidth;
-  canvas.height = canvas.clientHeight;
-  // compute scale mapping from canonical CANON_W x CANON_H to displayed canvas
-  const scaleX = canvas.width / CANON_W;
-  const scaleY = canvas.height / CANON_H;
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-
-  if (!result || result.reason !== 'ok') return;
-  // draw lip polygon
-  ctx.lineWidth = 3;
-  drawPolygon(ctx, result.lipPolygon.map(p => [p[0], p[1]]), scaleX, 0, 0, { stroke: '#E91E63', lineWidth: 3, close: true });
-
-  // draw each component bbox & centroid
-  ctx.lineWidth = 2;
-  for (const c of result.components) {
-    const [minx,miny,maxx,maxy] = c.bbox;
-    ctx.strokeStyle = '#A9A9A9';
-    ctx.strokeRect(minx*scaleX, miny*scaleY, (maxx-minx)*scaleX, (maxy-miny)*scaleY);
-    // centroid
-    ctx.fillStyle = '#e91e63';
-    ctx.beginPath();
-    ctx.arc(c.centroid[0]*scaleX, c.centroid[1]*scaleY, Math.max(2, Math.min(6, Math.sqrt(c.size)/2)), 0, Math.PI*2);
-    ctx.fill();
-  }
+function loadImage(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.src = src;
+  });
 }
 
-/* ====== UI wiring & interactions ====== */
+// 🔥 Enhanced Teeth Detection with Lip Masking
+function detectTeethMask(img, landmarks) {
+  const offCanvas = document.createElement('canvas');
+  offCanvas.width = img.width;
+  offCanvas.height = img.height;
+  const offCtx = offCanvas.getContext('2d');
+  offCtx.drawImage(img, 0, 0);
+  const imageData = offCtx.getImageData(0, 0, img.width, img.height);
+  const mask = new Uint8ClampedArray(imageData.width * imageData.height);
 
-document.addEventListener('DOMContentLoaded', async () => {
-  await loadFaceMesh(); // warm model
-
-  const formSection = document.getElementById('form-section');
-  const uploadSection = document.getElementById('upload-section');
-  const resultsSection = document.getElementById('results-section');
-  const formCompleteBtn = document.getElementById('form-complete-btn');
-  const uploadBtn = document.getElementById('upload-btn');
-  const cameraBtn = document.getElementById('camera-btn');
-  const imageUpload = document.getElementById('image-upload');
-  const analyzeBtn = document.getElementById('analyze-btn');
-  const overlayCanvas = document.getElementById('overlay-canvas');
-  const resultsCanvas = document.getElementById('results-canvas');
-  const previewPlaceholder = document.getElementById('preview-placeholder');
-  const resultsImage = document.getElementById('results-image');
-  const smileScoreDisplay = document.getElementById('smile-score-display');
-  const discountPercent = document.getElementById('discount-percent');
-  const whatsappLink = document.getElementById('whatsapp-link');
-
-  let uploadedFile = null;
-
-  formCompleteBtn.addEventListener('click', () => {
-    formSection.classList.add('hidden');
-    uploadSection.classList.remove('hidden');
+  // Create lip polygon
+  const lipIndices = [...Array(28).keys()].map(i => i + 61); // mediapipe lips 61–88
+  const path = new Path2D();
+  path.moveTo(landmarks[lipIndices[0]].x * img.width, landmarks[lipIndices[0]].y * img.height);
+  lipIndices.forEach(idx => {
+    const pt = landmarks[idx];
+    path.lineTo(pt.x * img.width, pt.y * img.height);
   });
+  path.closePath();
 
-  uploadBtn.addEventListener('click', () => imageUpload.click());
-  cameraBtn.addEventListener('click', () => {
-    imageUpload.setAttribute('capture', 'environment'); // open camera on mobile
-    imageUpload.click();
-  });
+  // Iterate pixels, include only those inside lips polygon
+  const tmpCtx = document.createElement('canvas').getContext('2d');
+  tmpCtx.canvas.width = img.width;
+  tmpCtx.canvas.height = img.height;
+  tmpCtx.fillStyle = "#000";
+  tmpCtx.fill(path);
 
-  imageUpload.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    uploadedFile = file;
-    // show preview
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      previewPlaceholder.style.display = 'none';
-      // replace preview area with a full-size image element
-      const previewArea = document.getElementById('image-preview');
-      // remove existing preview IMG if any
-      const old = previewArea.querySelector('img.preview-img');
-      if (old) old.remove();
-      const img = document.createElement('img');
-      img.className = 'preview-img absolute inset-0 w-full h-full object-contain rounded-xl';
-      img.src = ev.target.result;
-      img.onload = () => {
-        // clear overlay canvas
-        overlayCanvas.getContext('2d').clearRect(0,0,overlayCanvas.width, overlayCanvas.height);
-      }
-      previewArea.appendChild(img);
-    };
-    reader.readAsDataURL(file);
-    analyzeBtn.disabled = false;
-    analyzeBtn.classList.remove('bg-gray-200','text-gray-700');
-    analyzeBtn.classList.add('bg-[#e91e63]','text-white','hover:bg-[#c2185b]');
-  });
+  const lipMask = tmpCtx.getImageData(0, 0, img.width, img.height).data;
+  for (let i = 0; i < imageData.data.length; i += 4) {
+    const insideLip = lipMask[i + 3] > 0; // alpha channel from fill
+    if (!insideLip) continue;
+    const r = imageData.data[i];
+    const g = imageData.data[i + 1];
+    const b = imageData.data[i + 2];
+    const brightness = (r + g + b) / 3;
+    mask[i / 4] = brightness > 180 ? 255 : 0;
+  }
+  return { mask, width: img.width, height: img.height };
+}
 
-  analyzeBtn.addEventListener('click', async () => {
-    if (!uploadedFile) { showModal('No Image', 'Please upload a photo before analyzing.'); return; }
-    analyzeBtn.disabled = true;
-    analyzeBtn.textContent = 'Analyzing...';
-    try {
-      const result = await analyzeImageFile(uploadedFile);
-
-      if (result.reason !== 'ok') {
-        if (result.reason === 'no_face_detected') {
-          showModal('Face Not Detected', 'We could not detect a face in the uploaded image. Please upload a clear, front-facing photo with mouth visible.');
-          analyzeBtn.disabled = false;
-          analyzeBtn.textContent = 'Analyze My Smile';
-          return;
-        } else {
-          showModal('Analysis Error', 'Unexpected issue during analysis. Try another photo.');
-          analyzeBtn.disabled = false;
-          analyzeBtn.textContent = 'Analyze My Smile';
-          return;
-        }
-      }
-
-      // set results UI
-      smileScoreDisplay.textContent = `${result.score}%`;
-      discountPercent.textContent = `${result.discount}%`;
-      whatsappLink.href = `https://wa.me/916005795693?text=Hi, I just finished the Impec Smile Challenge. My score is ${result.score}%.`;
-
-      // display result image and overlay
-      resultsImage.src = URL.createObjectURL(uploadedFile);
-      resultsImage.onload = () => {
-        // draw overlay on results-canvas
-        resultsCanvas.width = resultsCanvas.clientWidth;
-        resultsCanvas.height = resultsCanvas.clientHeight;
-        drawPreviewOverlay(resultsCanvas, resultsImage, result);
-      };
-
-      // show results
-      uploadSection.classList.add('hidden');
-      resultsSection.classList.remove('hidden');
-
-    } catch (err) {
-      console.error(err);
-      showModal('Analysis Failed', 'There was an error analyzing this image. Please try again with a different photo.');
-    } finally {
-      analyzeBtn.disabled = false;
-      analyzeBtn.textContent = 'Analyze My Smile';
+function drawOverlay(teethMask) {
+  const imageData = ctx.createImageData(teethMask.width, teethMask.height);
+  for (let i = 0; i < teethMask.mask.length; i++) {
+    if (teethMask.mask[i] === 255) {
+      imageData.data[i * 4] = 255;
+      imageData.data[i * 4 + 1] = 255;
+      imageData.data[i * 4 + 2] = 255;
+      imageData.data[i * 4 + 3] = 120;
     }
-  });
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
 
-});
+function computeSmileScore(teethMask) {
+  const visibleTeeth = teethMask.mask.reduce((a, v) => a + (v === 255 ? 1 : 0), 0);
+  const coverage = visibleTeeth / teethMask.mask.length;
+  let score = Math.min(100, Math.max(0, coverage * 300));
+  return Math.round(score);
+}
+
+function getDiscount(smileScore) {
+  const Dmin = 10;
+  const Dmax = 30;
+  return +(Dmax - (smileScore / 100) * (Dmax - Dmin)).toFixed(2);
+}
+
+function displayResult({ smileScore, discount }) {
+  resultsSection.classList.remove('hidden');
+  smileScoreDisplay.textContent = `${smileScore}%`;
+  discountDisplay.textContent = `${discount}%`;
+}
 </script>
 </body>
 </html>
