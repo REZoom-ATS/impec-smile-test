@@ -1,4 +1,3 @@
-<!-- save-as: impec-smile-challenge.html -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -26,7 +25,7 @@
   <div class="bg-white rounded-3xl shadow-xl w-full max-w-md p-6 sm:p-8 space-y-6 text-center">
 
     <div class="flex flex-col items-center space-y-4">
-      <img src="./assets/mid-logo.png" alt="Impec Logo" class="w-24 h-24 rounded-full">
+      <img src="https://placehold.co/96x96/f8bbd0/e91e63?text=Impec" alt="Impec Logo" class="w-24 h-24 rounded-full">
 
       <h1 class="text-3xl sm:text-4xl font-bold">Impec: Smile Challenge</h1>
       <p class="text-gray-500 text-sm sm:text-base">Check your smile score and get a coupon for a discount on clear aligners.</p>
@@ -34,18 +33,31 @@
 
     <!-- Step 1: Form -->
     <div id="form-section" class="space-y-4">
-      <h2 class="text-xl font-semibold">Step 1: Fill out the form</h2>
-      <p class="text-gray-600">Please complete this short form before proceeding to the smile analysis.</p>
-      <a id="open-form-btn" href="https://docs.google.com/forms/d/e/1FAIpQLSc4Oh4wdPnIEcQASkgmC8735KRZLxsjjH_XLHSX3W05tM9ocA/viewform?usp=header"
-         target="_blank"
-         class="inline-block w-full bg-[#e91e63] text-white font-semibold py-3 px-6 rounded-full shadow-lg hover:bg-[#c2185b] transition-colors duration-300">
-        Open Google Form
-      </a>
-      <button id="form-complete-btn"
-         class="w-full bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-full shadow-md mt-2 hover:bg-gray-300 transition-colors duration-300">
-        I've completed the form
-      </button>
+        <h2 class="text-xl font-semibold">Step 1: Fill out the form</h2>
+        <p class="text-gray-600">Please complete this short form before proceeding to the smile analysis.</p>
+
+        <!-- === EMBEDDED GOOGLE FORM START === -->
+        <!-- I've replaced the link with an embedded iframe of your Google Form. -->
+        <div class="w-full h-[500px] border border-gray-200 rounded-lg overflow-hidden">
+            <iframe
+                src="https://docs.google.com/forms/d/e/1FAIpQLSc4Oh4wdPnIEcQASkgmC8735KRZLxsjjH_XLHSX3W05tM9ocA/viewform?embedded=true"
+                width="100%"
+                height="100%"
+                frameborder="0"
+                marginheight="0"
+                marginwidth="0">
+                Loading…
+            </iframe>
+        </div>
+        <!-- === EMBEDDED GOOGLE FORM END === -->
+
+        <!-- This button now takes the user to the next step after they've filled out the form. -->
+        <button id="continue-to-upload-btn"
+                class="w-full bg-[#e91e63] text-white font-semibold py-3 px-6 rounded-full shadow-lg hover:bg-[#c2185b] transition-colors duration-300 mt-4">
+            Continue to Step 2
+        </button>
     </div>
+
 
     <!-- Step 2: Upload -->
     <div id="upload-section" class="space-y-4 hidden">
@@ -70,7 +82,7 @@
       </div>
 
       <button id="analyze-btn" disabled
-              class="w-full bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-full shadow-md mt-2">
+            class="w-full bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-full shadow-md mt-2">
         Analyze My Smile
       </button>
     </div>
@@ -99,7 +111,7 @@
       </p>
 
       <a id="whatsapp-link" href="#" target="_blank"
-         class="inline-block w-full gradient-bg text-white font-bold py-3 px-6 rounded-full shadow-lg transition-colors duration-300 text-center">
+        class="inline-block w-full gradient-bg text-white font-bold py-3 px-6 rounded-full shadow-lg transition-colors duration-300 text-center">
         Need Review with Expert
       </a>
     </div>
@@ -111,7 +123,7 @@
       <h3 id="modal-title" class="text-xl font-bold"></h3>
       <p id="modal-message" class="text-gray-600"></p>
       <button id="modal-close-btn"
-              class="w-full bg-[#e91e63] text-white font-semibold py-2 px-4 rounded-full shadow-lg hover:bg-[#c2185b] transition-colors duration-300">
+            class="w-full bg-[#e91e63] text-white font-semibold py-2 px-4 rounded-full shadow-lg hover:bg-[#c2185b] transition-colors duration-300">
         OK
       </button>
     </div>
@@ -120,11 +132,11 @@
 <script>
 /*
   Key design choices:
-   - Deterministic: no random changes; fixed resizing, fixed rounding precision.
-   - Caching: image SHA-256 -> cached results in localStorage for identical uploads.
-   - Teeth segmentation: HSV-based threshold inside lip polygon (fast + deterministic).
-   - Scoring: weighted combination of coverage, symmetry, spacing, alignment.
-   - Discount: inverse-linear mapping from score: 100 -> 10%, 0 -> 30%.
+    - Deterministic: no random changes; fixed resizing, fixed rounding precision.
+    - Caching: image SHA-256 -> cached results in localStorage for identical uploads.
+    - Teeth segmentation: HSV-based threshold inside lip polygon (fast + deterministic).
+    - Scoring: weighted combination of coverage, symmetry, spacing, alignment.
+    - Discount: inverse-linear mapping from score: 100 -> 10%, 0 -> 30%.
 */
 
 /* ====== Utility functions ====== */
@@ -190,7 +202,7 @@ function connectedComponents(mask, w, h, minSize=10) {
         labels[idx] = label;
         let ptr = 0;
         while (ptr < q.length) {
-          const cur = q[ptr++]; 
+          const cur = q[ptr++];
           const cx = cur % w, cy = Math.floor(cur / w);
           const nbs = [
             [cx-1,cy],[cx+1,cy],[cx,cy-1],[cx,cy+1]
@@ -247,8 +259,8 @@ async function loadFaceMesh() {
 }
 
 /* Deterministic preprocessing:
-   - create a canonical image sized to CANON_W x CANON_H using 'bilinear' drawImage
-   - returns ImageData of canonical image
+    - create a canonical image sized to CANON_W x CANON_H using 'bilinear' drawImage
+    - returns ImageData of canonical image
 */
 const CANON_W = 512;
 const CANON_H = 512;
@@ -294,9 +306,9 @@ function rgbToHsv(r,g,b) {
 }
 
 /* Teeth segmentation inside lip polygon:
-   - threshold on (V high) & (S low) in HSV space
-   - returns binary mask (Uint8Array) sized width*height
-   - deterministic thresholds can be tuned
+    - threshold on (V high) & (S low) in HSV space
+    - returns binary mask (Uint8Array) sized width*height
+    - deterministic thresholds can be tuned
 */
 function segmentTeeth(imageData, lipPolygonCanvasCoords) {
   const w = imageData.width, h = imageData.height;
@@ -355,11 +367,11 @@ function cleanMask(binaryMask, w, h) {
 }
 
 /* Score computation:
-   - coverageScore: how much of the lip region is filled with teeth-like pixels (0..1)
-   - symmetryScore: compare left/right centroids of detected teeth components around midline (0..1)
-   - spacingScore: penalty for large gaps between adjacent tooth bboxes (0..1)
-   - alignmentScore: how well top edges align (0..1)
-   Weighted combination -> [0..100]
+    - coverageScore: how much of the lip region is filled with teeth-like pixels (0..1)
+    - symmetryScore: compare left/right centroids of detected teeth components around midline (0..1)
+    - spacingScore: penalty for large gaps between adjacent tooth bboxes (0..1)
+    - alignmentScore: how well top edges align (0..1)
+    Weighted combination -> [0..100]
 */
 function computeSmileScore(lipPoly, comps, lipAreaPx, w, h) {
   // coverage
@@ -599,7 +611,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const formSection = document.getElementById('form-section');
   const uploadSection = document.getElementById('upload-section');
   const resultsSection = document.getElementById('results-section');
-  const formCompleteBtn = document.getElementById('form-complete-btn');
+  // === JAVASCRIPT CHANGE: Point to the new button ===
+  const continueBtn = document.getElementById('continue-to-upload-btn');
   const uploadBtn = document.getElementById('upload-btn');
   const cameraBtn = document.getElementById('camera-btn');
   const imageUpload = document.getElementById('image-upload');
@@ -614,7 +627,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   let uploadedFile = null;
 
-  formCompleteBtn.addEventListener('click', () => {
+  // === JAVASCRIPT CHANGE: This event listener now targets the new button. ===
+  continueBtn.addEventListener('click', () => {
     formSection.classList.add('hidden');
     uploadSection.classList.remove('hidden');
   });
